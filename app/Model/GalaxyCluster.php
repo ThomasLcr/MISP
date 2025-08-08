@@ -820,6 +820,7 @@ class GalaxyCluster extends AppModel
             }
             if ($cluster['GalaxyCluster']['version'] > $existingGalaxyCluster['GalaxyCluster']['version']) {
                 $cluster['GalaxyCluster']['id'] = $existingGalaxyCluster['GalaxyCluster']['id'];
+                $cluster['GalaxyCluster']['galaxy_id'] = $existingGalaxyCluster['GalaxyCluster']['galaxy_id'];
                 $saveSuccess = $this->save($cluster);
             } else {
                 $results['errors'][] = __('Remote version is not newer than local one for cluster (%s)', $cluster['GalaxyCluster']['uuid']);
@@ -994,7 +995,6 @@ class GalaxyCluster extends AppModel
         }
 
         $clusters = $this->fetchGalaxyClusters($user, $options, $fetchFullCluster, $fetchFullRelationship);
-
         if (!empty($clusters) && $postProcess) {
             $tagIds = array_change_key_case(array_flip($tagNames));
             foreach ($clusters as $k => $cluster) {
@@ -1070,19 +1070,19 @@ class GalaxyCluster extends AppModel
             $params['contain'] = array(
                 'Galaxy',
                 'GalaxyElement',
-                'GalaxyClusterRelation' => array(
-                    'conditions' => $this->GalaxyClusterRelation->buildConditions($user, false, 'SourceCluster'),
-                    'GalaxyClusterRelationTag',
-                    'SharingGroup',
-                    'SourceCluster'
-                ),
                 'Orgc',
                 'Org',
                 'SharingGroup'
             );
-        }
-        if (!empty($includeFullClusterRelationship)) {
-            $params['contain']['GalaxyClusterRelation'][] = 'TargetCluster';
+            // Fixes issue where CakePHP 2 overrides 'recursive' => -1 when using 'contain' with hasMany associations,
+            // unintentionally fetching deeper related models not explicitly listed in 'contain'.
+            // TargetingClusterRelation is collected later on as a separate step.
+            $this->unbindModel(
+                ['hasMany' => ['TargetingClusterRelation']]
+            );
+            $this->unbindModel(
+                ['hasMany' => ['GalaxyClusterRelation']]
+            );
         }
         if (!empty($options['contain'])) {
             $params['contain'] = $options['contain'];
@@ -1120,13 +1120,56 @@ class GalaxyCluster extends AppModel
         } else {
             $clusters = $this->find('all', $params);
         }
-
         if (empty($clusters)) {
             return $clusters;
         }
 
         if (isset($options['first']) && $options['first']) {
             $clusters = [$clusters];
+        }
+
+        // moved the galaxyClusterRelation to a separate part of the function
+        if (empty($options['count']) && empty($options['list'])) {
+            // we'll build a lookup table for faster processing
+            $gCRLookupTable = [];
+            $gCR = ClassRegistry::init('GalaxyClusterRelation');
+            foreach ($clusters as $k => $cluster) {
+                if (isset($gCRLookupTable[$cluster['GalaxyCluster']['id']])) {
+                    $clusters[$k]['GalaxyClusterRelation'] = $gCRLookupTable[$cluster['GalaxyCluster']['id']];
+                    continue;
+                }
+                $galaxyClusterRelationParams = [
+                    'conditions' => [
+                        'GalaxyClusterRelation.galaxy_cluster_id' => $cluster['GalaxyCluster']['id']
+                    ],
+                    'recursive' => -1,
+                    'contain' => [
+                        'GalaxyClusterRelationTag',
+                        'SharingGroup',
+                        'SourceCluster'
+                    ]
+                ];
+
+                $temp = $this->GalaxyClusterRelation->buildConditions($user, false, 'SourceCluster');
+                if ($temp) {
+                    $galaxyClusterRelationParams['conditions'][] = $temp;
+                }
+        
+                if (!empty($includeFullClusterRelationship)) {
+                    $galaxyClusterRelationParams['contain']['GalaxyClusterRelation'][] = 'TargetCluster';
+                }
+                $gCRData = $gCR->find('all', $galaxyClusterRelationParams);
+                $gCRData = array_map(function ($element) {
+                    $temp = $element['GalaxyClusterRelation'];
+                    unset($element['GalaxyClusterRelation']);
+                    $element = array_merge($element, $temp);
+                    return $element;
+                }, $gCRData);
+
+                $gCRLookupTable[$cluster['GalaxyCluster']['id']] = $gCRData;
+                $clusters[$k]['GalaxyClusterRelation'] = $gCRLookupTable[$cluster['GalaxyCluster']['id']];
+            }
+            unset($gCRLookupTable);
         }
 
         if ($full) {
