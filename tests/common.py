@@ -16,7 +16,7 @@ auths_org_admin = []
 i = 1
 while True:
     host_key = f"HOST_{i}"
-    auth_site_key = f"AUTH_{i}"
+    auth_site_key = f"AUTH_ADMIN_{i}"
     auth_org_key = f"AUTH_ORG_{i}"
     if host_key in os.environ and auth_site_key in os.environ and auth_org_key in os.environ:
         hosts.append("http://" + os.environ[host_key])
