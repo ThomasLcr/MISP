@@ -31,7 +31,6 @@ jobs:
           echo "WORKSPACE=$(pwd)" >> $GITHUB_ENV
           echo "Variables initialized"          
 
-      # ÉTAPES COMMUNES - EXÉCUTÉES UNE SEULE FOIS
       - name: Install system dependencies
         run: |
           # Update package list and install in one go to reduce layers 
@@ -40,7 +39,7 @@ jobs:
             ca-certificates \
             gnupg \
 
-          # Add NodeJS repository with better security practices (needed for actions/checkout)
+          # Add NodeJS repository (needed for actions/checkout)
           mkdir -p /etc/apt/keyrings
           curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
           echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x jammy main" | tee /etc/apt/sources.list.d/nodesource.list
@@ -146,7 +145,6 @@ jobs:
           redis-cli ping || (echo "Redis unavailable!" && netstat -tulpn && exit 1)
       
 
-      # DÉPLOIEMENT DES INSTANCES MULTIPLES
       - name: Deploy multiple MISP instances
         shell: bash
         run: |
@@ -157,11 +155,8 @@ jobs:
             INST=instance-$ID
             DB=misp_$ID
             DBPASS=dbpass_$ID
-            # REDIS_PREFIX=misp${ID}:
             APACHE_PORT=$((8080 + ID))
             
-            pwd
-            ls -lisa app
             # First create the instance directory
             mkdir -p $WORKSPACE/$INST
             cp -r $WORKSPACE/app $WORKSPACE/$INST/
@@ -216,7 +211,7 @@ jobs:
             echo "Listen $APACHE_PORT" >> /etc/apache2/ports.conf
             a2ensite misp$ID.conf
 
-            # Configure MISP instance - DATABASE.PHP CORRIGÉ
+            # Configure MISP instance - first with database config
             cp $WORKSPACE/$INST/app/Config/bootstrap.default.php $WORKSPACE/$INST/app/Config/bootstrap.php
 
             cat > $WORKSPACE/$INST/app/Config/database.php <<EOF
@@ -239,24 +234,15 @@ jobs:
           }
           EOF
           
-            # Configuration des autres fichiers
+            # Using default config for other files
             cp $WORKSPACE/$INST/app/Config/core.default.php $WORKSPACE/$INST/app/Config/core.php
             cp $WORKSPACE/$INST/app/Config/config.default.php $WORKSPACE/$INST/app/Config/config.php
             cp $WORKSPACE/$INST/build/email.php $WORKSPACE/$INST/app/Config/email.php
             
-            # CONFIGURATION REDIS CORRIGÉE dans config.php
+            # CORRECTED REDIS CONFIGURATION in config.php
             MISP_CONF=$WORKSPACE/$INST/app/Config/config.php
             
-            # Correction de la configuration Redis
-            #sed -i "s/'redis_host' => 'localhost'/'redis_host' => '127.0.0.1'/g" $MISP_CONF
-            #sed -i "s/'redis_port' => 6379/'redis_port' => 6379/g" $MISP_CONF
-            #sed -i "s/'redis_database' => 13/'redis_database' => 13/g" $MISP_CONF
-            #sed -i "s/'redis_password' => ''/'redis_password' => ''/g" $MISP_CONF
-            
-            # Ajouter le préfixe Redis spécifique à l'instance
-            # sed -i "/redis_password/a\\        'redis_prefix' => '$REDIS_PREFIX'," $MISP_CONF
-            
-            # Configuration de l'URL de base pour chaque instance
+            # Configuring the base URL for each instance
             sed -i "s/'baseurl' => ''/'baseurl' => 'http:\/\/localhost:$APACHE_PORT'/g" $MISP_CONF
 
             # Enable ShibbAuth plugin for tests
@@ -282,17 +268,17 @@ jobs:
           
           echo "Deployment completed for $NUM_INSTANCES instances"
   
-      # Enable Apache modules une seule fois et démarrer
+      # Enable Apache modules once
       - name: Configure and start Apache
         run: |
           a2dissite 000-default
           a2enmod rewrite
           
-          # Redémarrer Apache pour prendre en compte les nouveaux ports
+          # Restart Apache to take into account the new ports
           apache2ctl configtest
           apache2ctl restart
           
-          # Vérifier que tous les ports sont en écoute
+          # Check that all ports are listening
           sleep 5
           netstat -tulpn | grep apache2
           echo "Apache configured and started with multiple ports"
@@ -301,7 +287,7 @@ jobs:
 
       - name: Setup Python environments
         run: |
-          # Créer un environnement Python par instance
+          # Create a Python environment per instance
           for ID in $(seq 1 $NUM_INSTANCES); do
             INST=instance-$ID
             echo "Setting up Python environment for $INST..."
@@ -309,10 +295,10 @@ jobs:
             cd $WORKSPACE/$INST
             python3 -m virtualenv -p python3 ./venv
             
-            # Configuration Python dans MISP
+            # Python configuration in MISP
             app/Console/cake Admin setSetting "MISP.python_bin" "$WORKSPACE/$INST/venv/bin/python"
             
-            # Installer les dépendances Python
+            # Install Python dependencies
             . ./venv/bin/activate
             export PYTHONPATH=$PYTHONPATH:./app/files/scripts
             pip install --upgrade pip wheel
@@ -329,21 +315,20 @@ jobs:
             INST=instance-$ID
             DB=misp_$ID
             DBPASS=dbpass_$ID
-            REDIS_PREFIX=misp${ID}:
             APACHE_PORT=$((8080 + ID))
 
             cd $WORKSPACE/$INST
             
-            # Mise à jour de la base de données
+            # Database update
             app/Console/cake Admin setSetting "MISP.osuser" $USER
             app/Console/cake Admin runUpdates
             
-            # Initialiser l'utilisateur et capturer le token
+            # Init user and fetch the token
             app/Console/cake User init | tee ../key-$ID.txt
             echo "HOST_$ID=localhost:$APACHE_PORT" >> $GITHUB_ENV
             echo "AUTH_ADMIN_$ID=$(cat ../key-$ID.txt)" >> $GITHUB_ENV
             
-            # Configuration des paramètres MISP avec baseurl correcte
+            # Configuring MISP settings with correct baseurl
             app/Console/cake Admin setSetting "MISP.baseurl" "http://localhost:$APACHE_PORT"
             app/Console/cake Admin setSetting "Session.autoRegenerate" 0
             app/Console/cake Admin setSetting "Session.timeout" 600
@@ -354,19 +339,19 @@ jobs:
             app/Console/cake Admin setSetting --force "debug" true
             app/Console/cake Admin setSetting "Plugin.CustomAuth_disable_logout" false
             
-            # Configuration Redis avec préfixe unique
+            # Configuring Redis 
             app/Console/cake Admin setSetting "MISP.redis_host" "127.0.0.1"
             app/Console/cake Admin setSetting "MISP.redis_port" 6379
             app/Console/cake Admin setSetting "MISP.redis_database" $((NUM_INSTANCES + ID))
             app/Console/cake Admin setSetting "MISP.redis_password" ""
             
-            # Configuration GPG
+            # Configuring GPG
             app/Console/cake Admin setSetting "GnuPG.email" "info@admin.test"
             app/Console/cake Admin setSetting "GnuPG.homedir" "$WORKSPACE/$INST/.gnupg"
             app/Console/cake Admin setSetting "GnuPG.password" "travistest$ID"
             app/Console/cake Admin setSetting "MISP.download_gpg_from_homedir" 1
             
-            # ZeroMQ et Background Jobs avec préfixes Redis séparés
+            # ZeroMQ and Background Jobs
             app/Console/cake Admin setSetting "Plugin.ZeroMQ_redis_host" "127.0.0.1"
             app/Console/cake Admin setSetting "Plugin.ZeroMQ_redis_port" 6379
             app/Console/cake Admin setSetting "Plugin.ZeroMQ_redis_database" 1
@@ -434,7 +419,7 @@ jobs:
 
           mkdir -p /etc/supervisor/conf.d
 
-          # Générer dynamiquement le fichier des workers pour toutes les instances
+          # Dynamically generate the workers file for all instances
           WORKERS_CONF=/etc/supervisor/conf.d/50-workers.conf
           echo "" > $WORKERS_CONF
 
@@ -495,18 +480,18 @@ jobs:
 
           echo "✅ Supervisor config generated for $NUM_INSTANCES instances"
 
-          # Lancer supervisord une seule fois
+          # Run supervisord only once
           python3 -m supervisor.supervisord -c /etc/supervisord.conf
           sleep 2
 
-          # Démarrer tous les workers
+          # Start all workers
           python3 -m supervisor.supervisorctl -c /etc/supervisord.conf start all
           python3 -m supervisor.supervisorctl -c /etc/supervisord.conf status
 
 
       - name: Update JSON
         run: |
-          echo 'Skipping this step to gain 10 minutes'
+          echo 'Skipping this step allow to gain 3 minutes per instance'
           #for ID in $(seq 1 $NUM_INSTANCES); do
           #  INST=instance-$ID
           #  cd $WORKSPACE/$INST
@@ -592,20 +577,20 @@ jobs:
           declare -A HOSTS
           declare -A AUTHS_ADMIN
       
-          # Préparer HOSTS et AUTHS_ADMIN
+         # Prepare HOSTS and AUTHS_ADMIN
           for ID in $(seq 1 $NUM_INSTANCES); do
             HOSTS[$ID]="localhost:$((8080 + ID))"
             AUTHS_ADMIN[$ID]=$(cat key-$ID.txt)
           done
       
-          # Générer des UUIDs pour les ORGs
+  
           echo "🆔 Generating UUIDs for all organisations..."
           for ID in $(seq 1 $NUM_INSTANCES); do
             ORG_UUIDS[$ID]=$(uuidgen)
             echo "ORG_$ID UUID = ${ORG_UUIDS[$ID]}"
           done
       
-          # Créer toutes les ORGs sur chaque instance avec UUID fixé
+          # Create all ORGs on each instance with fixed UUID
           for ID in $(seq 1 $NUM_INSTANCES); do
             BASEURL="http://${HOSTS[$ID]}"
             API_KEY="${AUTHS_ADMIN[$ID]}"
@@ -620,7 +605,7 @@ jobs:
             done
           done
       
-          # Définir l'organisation hôte sur chaque instance + créer org admins
+          # Set host organization on each instance + create org admins
           for ID in $(seq 1 $NUM_INSTANCES); do
             BASEURL="http://${HOSTS[$ID]}"
             API_KEY="${AUTHS_ADMIN[$ID]}"
@@ -646,7 +631,7 @@ jobs:
             cd $WORKSPACE/instance-$ID
             app/Console/cake Admin setSetting "MISP.host_org_id" "$ORG_ID"
           
-            # Créer un nouvel admin d'org
+     
             echo "👤 Creating Org Admin user for ORG_$REF_ID on instance $ID..."
             ADMIN_PAYLOAD=$(jq -n \
               --arg email "orgadmin_$ID@user.test" \
@@ -674,8 +659,8 @@ jobs:
       
             cd $WORKSPACE
           done
+
       
-          # Création utilisateurs de synchronisation + clés API
           echo "👤 Creating sync users and generating API keys..."
           declare -A SYNC_KEYS
           while IFS="=" read -r FROM TO_LIST; do
@@ -726,7 +711,7 @@ jobs:
             done
           done < <(echo "$CONNECTION_SCHEMA" | jq -r 'to_entries[] | "\(.key)=\(.value | join(" "))"')
       
-          # Création des serveurs distants
+  
           echo "🌐 Creating remote sync servers..."
           while IFS="=" read -r FROM TO_LIST; do
             for TO in $TO_LIST; do
@@ -796,7 +781,7 @@ jobs:
           done < <(echo "$CONNECTION_SCHEMA" | jq -r 'to_entries[] | "\(.key)=\(.value | join(" "))"')
       
           ########################################################
-          # 📦 Ajout logique de Sharing Group (sur instance 1)
+          # 📦 Adding Sharing Group (on instance 1)
           ########################################################
       
           echo "📦 Creating Sharing Group on instance 1..."
