@@ -4897,6 +4897,9 @@ class Event extends AppModel
                 if (!empty($server['Server']['internal'])) {
                     $params['excludeLocalTags'] = 0;
                 }
+                if (!empty($server['Server']['push_analyst_data'])) {
+                    $params['includeAnalystData'] = 1;
+                }
                 $event = $this->fetchEvent($elevatedUser, $params);
                 $event = $event[0];
                 $event['Event']['locked'] = 1;
