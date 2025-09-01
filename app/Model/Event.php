@@ -1031,7 +1031,10 @@ class Event extends AppModel
             'EventReport',
             'CryptographicKey',
             'ThreatLevel',
-            'Galaxy'
+            'Galaxy',
+            'Note',
+            'Opinion',
+            'Relationship'
         );
         foreach ($objectsToRearrange as $o) {
             if (isset($event[$o])) {
