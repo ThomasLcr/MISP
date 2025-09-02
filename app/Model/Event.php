@@ -1137,6 +1137,54 @@ class Event extends AppModel
         return $data;
     }
 
+
+    private function __prepareAnalystDataForSync($data, $server)
+    {
+        if (!empty($data['Note'])) {
+            foreach ($data['Note'] as $key => $note) {
+                $data['Note'][$key] = $this->__updateNoteForSync($note, $server);
+                if (empty($data['Note'][$key])) {
+                    unset($data['Note'][$key]);
+                }
+            }
+            $data['Note'] = array_values($data['Note']);
+        }
+        elseif (!empty($data['Opinion'])) {
+            foreach ($data['Opinion'] as $key => $opinion) {
+                $data['Opinion'][$key] = $this->__updateOpinionForSync($opinion, $server);
+                if (empty($data['Opinion'][$key])) {
+                    unset($data['Opinion'][$key]);
+                }
+            }
+            $data['Opinion'] = array_values($data['Opinion']);
+        }
+        elseif (!empty($data['Relationship'])) {
+            foreach ($data['Relationship'] as $key => $relationship) {
+                $data['Relationship'][$key] = $this->__updateRelationshipForSync($relationship, $server);
+                if (empty($data['Relationship'][$key])) {
+                    unset($data['Relationship'][$key]);
+                }
+            }
+            $data['Relationship'] = array_values($data['Relationship']);
+        }
+        if (empty($data['Note']) && empty($data['Opinion']) && empty($data['Relationship'])) {
+            unset($data['Note']);
+            unset($data['Opinion']);
+            unset($data['Relationship']);
+        } else {
+            if (!empty($data['Note'])) {
+                $data['Note'] = $this->__removeNonExportableTags($data['Note'], 'Note', $server);
+            }
+            if (!empty($data['Opinion'])) {
+                $data['Opinion'] = $this->__removeNonExportableTags($data['Opinion'], 'Opinion', $server);
+            }
+            if (!empty($data['Relationship'])) {
+                $data['Relationship'] = $this->__removeNonExportableTags($data['Relationship'], 'Relationship', $server);
+            }
+        }
+        return $data;
+    }
+
     private function __updateEventForSync($event, $server)
     {
         $event = $this->__rearrangeEventStructureForSync($event);
@@ -1158,6 +1206,7 @@ class Event extends AppModel
         $event['Event'] = $this->__prepareAttributesForSync($event['Event'], $server, $pushRules);
         $event['Event'] = $this->__prepareObjectsForSync($event['Event'], $server, $pushRules);
         $event['Event'] = $this->__prepareEventReportForSync($event['Event'], $server, $pushRules);
+        $event['Event'] = $this->__prepareAnalystDataForSync($event['Event'], $server, $pushRules);
 
         // Downgrade the event from connected communities to community only
         if (!$server['Server']['internal'] && $event['Event']['distribution'] == 2) {
@@ -1301,6 +1350,160 @@ class Event extends AppModel
             }
         }
         return $report;
+    }
+
+    private function __updateNoteForSync($data, $server)
+    {
+        if (!$server['Server']['internal'] && $data['distribution'] < 2) {
+            return false;
+        }
+        // // check if remote version support analyst data
+        // $analystDataSupportedByRemote = false;
+        // $uri = $server['Server']['url'] . '/analyst_data/add/';
+        // $HttpSocket = $this->setupHttpSocket($server, null);
+        // $request = $this->setupSyncRequest($server);
+        // try {
+        //     $response = $HttpSocket->get($uri, false, $request);
+        //     if ($response->isOk()) {
+        //         $apiDescription = json_decode($response->body, true);
+        //         $analystDataSupportedByRemote = !empty($apiDescription['description']);
+        //     }
+        // } catch (Exception $e) {
+        //     $this->Log = ClassRegistry::init('Log');
+        //     $message = __('Remote version does not support analyst data.');
+        //     $this->Log->createLogEntry('SYSTEM', $action, 'Server', $id, $message);
+        // }
+
+        // if (!$analystDataSupportedByRemote) {
+        //     return [];
+        // }
+
+        // Downgrade the object from connected communities to community only
+        if (!$server['Server']['internal'] && $data['distribution'] == 2) {
+            $data['distribution'] = 1;
+        }
+        // If the object has a sharing group attached, make sure it can be transferred
+        if ($data['distribution'] == 4) {
+            if (!$server['Server']['internal'] && $this->checkDistributionForPush(array('Note' => $data), $server, 'Note') === false) {
+                return false;
+            }
+            // Add the local server to the list of instances in the SG
+            if (isset($object['SharingGroup']['SharingGroupServer'])) {
+                foreach ($object['SharingGroup']['SharingGroupServer'] as &$s) {
+                    if ($s['server_id'] == 0) {
+                        $s['Server'] = array(
+                            'id' => 0,
+                            'url' => $this->__getAnnounceBaseurl(),
+                            'name' => $this->__getAnnounceBaseurl()
+                        );
+                    }
+                }
+            }
+        }
+        return $data;
+    }
+
+    private function __updateOpinionForSync($data, $server)
+    {
+        if (!$server['Server']['internal'] && $data['distribution'] < 2) {
+            return false;
+        }
+        // // check if remote version support analyst data
+        // $analystDataSupportedByRemote = false;
+        // $uri = $server['Server']['url'] . 'analyst_data/add/';
+        // $HttpSocket = $this->setupHttpSocket($server, null);
+        // $request = $this->setupSyncRequest($server);
+        // try {
+        //     $response = $HttpSocket->get($uri, false, $request);
+        //     if ($response->isOk()) {
+        //         $apiDescription = json_decode($response->body, true);
+        //         $analystDataSupportedByRemote = !empty($apiDescription['description']);
+        //     }
+        // } catch (Exception $e) {
+        //     $this->Log = ClassRegistry::init('Log');
+        //     $message = __('Remote version does not support analyst data.');
+        //     $this->Log->createLogEntry('SYSTEM', $action, 'Server', $id, $message);
+        // }
+
+        // if (!$analystDataSupportedByRemote) {
+        //     return [];
+        // }
+
+        // Downgrade the object from connected communities to community only
+        if (!$server['Server']['internal'] && $data['distribution'] == 2) {
+            $data['distribution'] = 1;
+        }
+        // If the object has a sharing group attached, make sure it can be transferred
+        if ($data['distribution'] == 4) {
+            if (!$server['Server']['internal'] && $this->checkDistributionForPush(array('Opinion' => $data), $server, 'Opinion') === false) {
+                return false;
+            }
+            // Add the local server to the list of instances in the SG
+            if (isset($object['SharingGroup']['SharingGroupServer'])) {
+                foreach ($object['SharingGroup']['SharingGroupServer'] as &$s) {
+                    if ($s['server_id'] == 0) {
+                        $s['Server'] = array(
+                            'id' => 0,
+                            'url' => $this->__getAnnounceBaseurl(),
+                            'name' => $this->__getAnnounceBaseurl()
+                        );
+                    }
+                }
+            }
+        }
+        return $data;
+    }
+
+
+    private function __updateRelationshipForSync($data, $server)
+    {
+        if (!$server['Server']['internal'] && $data['distribution'] < 2) {
+            return false;
+        }
+        // // check if remote version support relationship data
+        // $relationshipDataSupportedByRemote = false;
+        // $uri = $server['Server']['url'] . 'relationship_data/add/';
+        // $HttpSocket = $this->setupHttpSocket($server, null);
+        // $request = $this->setupSyncRequest($server);
+        // try {
+        //     $response = $HttpSocket->get($uri, false, $request);
+        //     if ($response->isOk()) {
+        //         $apiDescription = json_decode($response->body, true);
+        //         $relationshipDataSupportedByRemote = !empty($apiDescription['description']);
+        //     }
+        // } catch (Exception $e) {
+        //     $this->Log = ClassRegistry::init('Log');
+        //     $message = __('Remote version does not support relationship data.');
+        //     $this->Log->createLogEntry('SYSTEM', $action, 'Server', $id, $message);
+        // }
+
+        // if (!$relationshipDataSupportedByRemote) {
+        //     return [];
+        // }
+
+        // Downgrade the object from connected communities to community only
+        if (!$server['Server']['internal'] && $data['distribution'] == 2) {
+            $data['distribution'] = 1;
+        }
+        // If the object has a sharing group attached, make sure it can be transferred
+        if ($data['distribution'] == 4) {
+            if (!$server['Server']['internal'] && $this->checkDistributionForPush(array('Relationship' => $data), $server, 'Relationship') === false) {
+                return false;
+            }
+            // Add the local server to the list of instances in the SG
+            if (isset($object['SharingGroup']['SharingGroupServer'])) {
+                foreach ($object['SharingGroup']['SharingGroupServer'] as &$s) {
+                    if ($s['server_id'] == 0) {
+                        $s['Server'] = array(
+                            'id' => 0,
+                            'url' => $this->__getAnnounceBaseurl(),
+                            'name' => $this->__getAnnounceBaseurl()
+                        );
+                    }
+                }
+            }
+        }
+        return $data;
     }
 
     /**

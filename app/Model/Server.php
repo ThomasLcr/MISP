@@ -427,6 +427,42 @@ class Server extends AppModel
                     }
                 }
             }
+            if (isset($event['Event']['Note'])) {
+                foreach ($event['Event']['Note'] as $key => $note) {
+                    switch ($note['distribution']) {
+                        case '1':
+                            $event['Event']['Note'][$key]['distribution'] = '0';
+                            break;
+                        case '2':
+                            $event['Event']['Note'][$key]['distribution'] = '1';
+                            break;
+                    }
+                }
+            }
+            if (isset($event['Event']['Opinion'])) {
+                foreach ($event['Event']['Opinion'] as $key => $opinion) {
+                    switch ($opinion['distribution']) {
+                        case '1':
+                            $event['Event']['Opinion'][$key]['distribution'] = '0';
+                            break;
+                        case '2':
+                            $event['Event']['Opinion'][$key]['distribution'] = '1';
+                            break;
+                    }
+                }
+            }
+            if (isset($event['Event']['Relationship'])) {
+                foreach ($event['Event']['Relationship'] as $key => $relationship) {
+                    switch ($relationship['distribution']) {
+                        case '1':
+                            $event['Event']['Relationship'][$key]['distribution'] = '0';
+                            break;
+                        case '2':
+                            $event['Event']['Relationship'][$key]['distribution'] = '1';
+                            break;
+                    }
+                }
+            }
         }
 
         // Distribution, set reporter of the event, being the admin that initiated the pull
