@@ -841,6 +841,9 @@ jobs:
       - name: Run Python Tests
         shell: bash
         run: |
+          pwd 
+          ls -lisa
+          
           INST=instance-1
 
           cd $WORKSPACE/$INST
