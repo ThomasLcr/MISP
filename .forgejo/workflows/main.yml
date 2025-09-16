@@ -577,13 +577,13 @@ jobs:
           declare -A HOSTS
           declare -A AUTHS_ADMIN
       
-         # Prepare HOSTS and AUTHS_ADMIN
+          # Prepare HOSTS and AUTHS_ADMIN
           for ID in $(seq 1 $NUM_INSTANCES); do
             HOSTS[$ID]="localhost:$((8080 + ID))"
             AUTHS_ADMIN[$ID]=$(cat key-$ID.txt)
           done
-      
-  
+
+          
           echo "🆔 Generating UUIDs for all organisations..."
           for ID in $(seq 1 $NUM_INSTANCES); do
             ORG_UUIDS[$ID]=$(uuidgen)
@@ -830,7 +830,14 @@ jobs:
           echo "🎉 Inter-instance sync + Sharing Group setup completed successfully"
 
           
+      - name: Fetch test files
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          repository: forgejo/misp-synchronisation
+          path: tests/
 
+          
       - name: Run Python Tests
         shell: bash
         run: |
@@ -888,3 +895,9 @@ jobs:
               echo "No error.log found"
             fi
           done 
+
+
+
+
+
+
