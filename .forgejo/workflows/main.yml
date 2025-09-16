@@ -833,7 +833,7 @@ jobs:
       - name: Fetch test files
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: main
           repository: thomasl/misp-synchronisation
           path: tests/
 
