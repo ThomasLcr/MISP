@@ -837,14 +837,14 @@ jobs:
         with:
           ref: main
           repository: thomasl/misp-synchronisation
-          path: tests/
+          path: synchronisation/
 
           
       - name: Run Python Tests
         shell: bash
         run: |
           pwd 
-          ls -lisa tests/
+          ls -lisa synchronisation/
           
           INST=instance-1
 
@@ -853,7 +853,7 @@ jobs:
           sudo chmod -R g+ws ./app/tmp/logs
       
           . ./venv/bin/activate
-          python -m unittest discover -s tests -p "test_sync_*.py" -v
+          python -m unittest discover -s synchronisation/tests -p "test_sync_*.py" -v
 
           deactivate
 
