@@ -842,14 +842,7 @@ jobs:
           
       - name: Run Python Tests
         shell: bash
-        run: |
-          pwd 
-          ls -lisa synchronisation/
-          
-          INST=instance-1
-
-          #cd $WORKSPACE/$INST
-      
+        run: |      
           sudo chmod -R g+ws ./app/tmp/logs
       
           . ./venv/bin/activate
