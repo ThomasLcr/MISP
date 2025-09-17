@@ -287,23 +287,25 @@ jobs:
 
       - name: Setup Python environments
         run: |
-          # Create a Python environment per instance
+          # Create a Python environment
+          python3 -m virtualenv -p python3 ./venv
+
+          # Install Python dependencies
+          . ./venv/bin/activate
+          export PYTHONPATH=$PYTHONPATH:./app/files/scripts
+          pip install --upgrade pip wheel
+          pip install --no-cache-dir -r $WORKSPACE/requirements.txt -r $WORKSPACE/requirements-dev.txt
+          deactivate
+            
+          # Set the Python environment for each instance
           for ID in $(seq 1 $NUM_INSTANCES); do
             INST=instance-$ID
             echo "Setting up Python environment for $INST..."
             
             cd $WORKSPACE/$INST
-            python3 -m virtualenv -p python3 ./venv
-            
+          
             # Python configuration in MISP
-            app/Console/cake Admin setSetting "MISP.python_bin" "$WORKSPACE/$INST/venv/bin/python"
-            
-            # Install Python dependencies
-            . ./venv/bin/activate
-            export PYTHONPATH=$PYTHONPATH:./app/files/scripts
-            pip install --upgrade pip wheel
-            pip install --no-cache-dir -r $WORKSPACE/requirements.txt -r $WORKSPACE/requirements-dev.txt
-            deactivate
+            app/Console/cake Admin setSetting "MISP.python_bin" "$WORKSPACE/venv/bin/python"
             
             cd $WORKSPACE
             echo "Python environment ready for $INST"
@@ -842,7 +844,7 @@ jobs:
         shell: bash
         run: |
           pwd 
-          ls -lisa
+          ls -lisa tests/
           
           INST=instance-1
 
