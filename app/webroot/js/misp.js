@@ -5496,7 +5496,11 @@ function fetchFormDataAjax(url, callback, errorCallback) {
 }
 
 function moveIndexRow(id, direction, endpoint) {
-    var row = $('#row_' + id);
+    var row = $('tr[data-row-id="' + (id-1) + '"]');
+    if (!row.length) {
+        handleGenericAjaxResponse({saved: false, errors: ['Row not found in DOM.']});
+        return;
+    }
     $.ajax({
         url: baseurl + endpoint + '/' + id + '/' + direction,
         type: 'GET',
@@ -5517,6 +5521,9 @@ function moveIndexRow(id, direction, endpoint) {
         }
     });
 }
+
+
+
 
 function checkRoleEnforceRateLimit() {
     if ($("#RoleEnforceRateLimit").is(':checked')) {
