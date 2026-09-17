@@ -76,10 +76,10 @@ class EventsController extends AppController
         // CSRF token as a header. None of them take body fields a form hash
         // would protect - they post a JSON document
         $this->_csrfTokenHeaderOnly([
-            'publish', 'unpublish', 'restSearch',
+            'publish', 'unpublish', 'restSearch', 'getEventTimeline',
             'editEventTags', 'editEventGalaxies',
             'editEventTagRelationships', 'editEventGalaxyRelationships',
-            'getEventGraphReferences','getEventGraphTags','getEventGraphGeneric'
+            'getEventGraphReferences','getEventGraphTags','getEventGraphGeneric',
         ]);
 
         // if not admin or own org, check private as well..
@@ -303,7 +303,8 @@ class EventsController extends AppController
                     if ($v === 2 || $v === '2') { // both
                         continue 2;
                     }
-                    $proposalQuery = "exists (select id, deleted from shadow_attributes where shadow_attributes.event_id = Event.id and shadow_attributes.deleted = 0)";
+                    // = FALSE rather than = 0: the column is boolean on PostgreSQL, and both engines take the keyword.
+                    $proposalQuery = "exists (select id, deleted from shadow_attributes where shadow_attributes.event_id = Event.id and shadow_attributes.deleted = FALSE)";
                     if ($v == 0) {
                         $proposalQuery = 'not ' . $proposalQuery;
                     }
@@ -668,7 +669,7 @@ class EventsController extends AppController
                     break;
                 case 'minimal':
                     $tableName = $this->Event->EventReport->table;
-                    $eventReportQuery = sprintf('EXISTS (SELECT id FROM %s WHERE %s.event_id = Event.id AND %s.deleted = 0)', $tableName, $tableName, $tableName);
+                    $eventReportQuery = sprintf('EXISTS (SELECT id FROM %s WHERE %s.event_id = Event.id AND %s.deleted = FALSE)', $tableName, $tableName, $tableName);
                     $this->paginate['conditions']['AND'][] = [
                         'OR' => [
                             ['Event.attribute_count >' => 0],
@@ -2342,14 +2343,22 @@ class EventsController extends AppController
             }
         }
 
-        // Favorite event report (for the moment, only the most recent one)
+        // Favorite event report (for the moment, only the most recent one).
+        // A report carries its own distribution, so seeing the event does not
+        // mean seeing every report on it: apply the report ACL, as the
+        // reports tab does, and skip soft-deleted ones.
+        $reportConditions =
+            $this->Event->EventReport->buildACLConditions($user);
+        $reportConditions['AND'][] = [
+            'EventReport.event_id' => $event['Event']['id'],
+            'EventReport.deleted' => 0,
+        ];
         $result = $this->Event->EventReport->find(
             'first',
             [
-                'conditions' => [
-                    'EventReport.event_id' =>
-                        $event['Event']['id'],
-                ]
+                'conditions' => $reportConditions,
+                'contain' => EventReport::DEFAULT_CONTAIN,
+                'recursive' => -1,
             ]
         );
         $event['EventReport'] = $result['EventReport'] ?? null;
@@ -5645,7 +5654,10 @@ class EventsController extends AppController
 
             $creator_only = false;
             if (isset($this->request->data['Event']['person'])) {
-                $creator_only = $this->request->data['Event']['person'];
+                // Cast: this reaches the background job as an argv element next
+                // to the free-text message, and two adjacent caller-controlled
+                // elements are all the console's path switches need.
+                $creator_only = (bool)$this->request->data['Event']['person'];
             }
             $user = $this->Auth->user();
             $user = $this->Event->User->fillKeysToUser($user);
@@ -7842,13 +7854,18 @@ class EventsController extends AppController
         }
 
         if ($model === 'Object') {
+            // Unlike fetchAttributes(), fetchObjects() honours this field list
+            // literally - the enrichment result view and its side menu need the
+            // event's identity (id, uuid, ownership) on top of the distribution.
             $object = $this->Event->Object->fetchObjects($this->Auth->user(), [
                 'conditions' => [
                     'Object.id' => $id
                 ],
                 'flatten' => 1,
                 'includeEventTags' => 1,
-                'contain' => ['Event' => ['fields' => ['distribution', 'sharing_group_id']]],
+                'contain' => ['Event' => ['fields' => [
+                    'id', 'uuid', 'info', 'user_id', 'org_id', 'orgc_id', 'distribution', 'sharing_group_id'
+                ]]],
             ]);
             if (empty($object)) {
                 throw new MethodNotAllowedException(__('Object not found or you are not authorised to see it.'));
@@ -7900,8 +7917,10 @@ class EventsController extends AppController
             $this->set('sourceId', $id);
             $options = [];
             $format = 'simplified';
+            $moduleFound = false;
             foreach ($enabledModules['modules'] as $temp) {
                 if ($temp['name'] == $module) {
+                    $moduleFound = true;
                     $format = !empty($temp['mispattributes']['format']) ? $temp['mispattributes']['format'] : 'simplified';
                     if (isset($temp['meta']['config'])) {
                         foreach ($temp['meta']['config'] as $conf) {
@@ -7910,6 +7929,9 @@ class EventsController extends AppController
                     }
                     break;
                 }
+            }
+            if (!$moduleFound) {
+                throw new MethodNotAllowedException(__('Module not found or not available.'));
             }
             $distributions = $this->Event->Attribute->distributionLevels;
             $sgs = $this->Event->SharingGroup->fetchAllAuthorised($this->Auth->user(), 'name', 1);
@@ -8016,7 +8038,7 @@ class EventsController extends AppController
         if (empty($event['Attribute']) && empty($event['Object'])) {
             throw new NotImplementedException(__('No Attribute or Object returned by the module.'));
         } else {
-            $importComment = !empty($result['comment']) ? $result['comment'] : $object[0]['Object']['value'] . __(': Enriched via the ') . $module . ($type != 'Enrichment' ? ' ' . $type : '')  . ' module';
+            $importComment = !empty($result['comment']) ? $result['comment'] : $object[0]['Object']['name'] . __(': Enriched via the ') . $module . ($type != 'Enrichment' ? ' ' . $type : '')  . ' module';
             $this->set('importComment', $importComment);
             $event['Event'] = $object[0]['Event'];
             $org_name = $this->Event->Orgc->find('first', array(
@@ -8024,8 +8046,8 @@ class EventsController extends AppController
                 'fields' => array('Orgc.name')
             ));
             $event['Event']['orgc_name'] = $org_name['Orgc']['name'];
-            if ($attribute[0]['Object']['id']) {
-                $object_id = $attribute[0]['Object']['id'];
+            if (!empty($object[0]['Object']['id'])) {
+                $object_id = $object[0]['Object']['id'];
                 $initial_object = $this->Event->fetchInitialObject($event_id, $object_id);
                 if (!empty($initial_object)) {
                     $event['initialObject'] = $initial_object;

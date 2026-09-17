@@ -1,5 +1,7 @@
 <?php
 App::uses('ConnectionManager', 'Model');
+App::uses('Mysql', 'Model/Datasource/Database');
+App::uses('Postgres', 'Model/Datasource/Database');
 App::uses('Controller', 'Controller');
 App::uses('File', 'Utility');
 App::uses('RequestRearrangeTool', 'Tools');
@@ -40,7 +42,7 @@ class AppController extends Controller
      */
     const PRE_AUTH_FLOOD_WINDOW = 900;
 
-    private $__queryVersion = '222';
+    private $__queryVersion = '225';
     public $pyMispVersion = '2.5.34.2';
     public $phpmin = '8.1';
     public $phprec = '8.2';
@@ -243,6 +245,21 @@ class AppController extends Controller
         if (Configure::read('Plugin.CustomAuth_enable')) {
             $userLoggedIn = $this->__customAuthentication($_SERVER);
         }
+        // A request body is a document, never a locator. RequestHandlerComponent
+        // decodes an XML body on every write request, and Xml::build() treats a
+        // body that is a bare URL as something to go and fetch: its readFile
+        // guard reads `$options['readFile'] && http || https`, and && binds
+        // tighter than ||, so the https branch is never gated by it. That turns
+        // every endpoint accepting an XML content type - including cspReport,
+        // which is unauthenticated by design - into a blind SSRF. Decode only
+        // what actually looks like a document.
+        $this->RequestHandler->addInputType('xml', [function ($body) {
+            if (!is_string($body) || strpos($body, '<') === false) {
+                return [];
+            }
+            return $this->RequestHandler->convertXml($body);
+        }]);
+
         if ($this->_isRest()) {
             $jsonDecode = function ($dataToDecode) {
                 if (empty($dataToDecode)) {
@@ -457,9 +474,7 @@ class AppController extends Controller
 
         if ($user && $this->_isSiteAdmin()) {
             if (Configure::read('Session.defaults') === 'database') {
-                $db = ConnectionManager::getDataSource('default');
-                $sqlResult = $db->query('SELECT COUNT(id) AS session_count FROM cake_sessions WHERE expires < ' . time() . ';');
-                if (isset($sqlResult[0][0]['session_count']) && $sqlResult[0][0]['session_count'] > 1000) {
+                if ($this->User->Server->expiredSessionCount() > 1000) {
                     $this->User->Server->updateDatabase('cleanSessionTable');
                 }
             }
@@ -1233,9 +1248,12 @@ class AppController extends Controller
             $db->setConfig(array('encoding' => 'utf8'));
             ConnectionManager::create('default', $db->config);
         }
-        $dataSource = $dataSourceConfig['datasource'];
-        if (!in_array($dataSource, ['Database/Mysql', 'Database/Postgres', 'Database/MysqlObserver', 'Database/MysqlExtended', 'Database/MysqlObserverExtended'], true)) {
-            throw new Exception('Datasource not supported: ' . $dataSource);
+        // Any MySQL or PostgreSQL driver, including MISP's own subclasses of
+        // Cake's two - checked by class rather than by name, so a new subclass
+        // cannot be forgotten here the way the first PostgreSQL one was.
+        $db = ConnectionManager::getDataSource('default');
+        if (!($db instanceof Mysql) && !($db instanceof Postgres)) {
+            throw new Exception('Datasource not supported: ' . $dataSourceConfig['datasource']);
         }
     }
 
