@@ -30,6 +30,36 @@ $relationships = $analystData['Relationship'] ?? [];
 $inbound       = $analystData['RelationshipInbound'] ?? [];
 $total = count($notes) + count($opinions) + count($relationships) + count($inbound);
 
+// Notes and opinions anywhere in the thread, replies included, by type; a
+// branch cut short by the depth limit makes the figure a lower bound.
+$threadCount = ['Note' => 0, 'Opinion' => 0, 'truncated' => false];
+$countThread = function (array $items, $type) use (&$countThread, &$threadCount) {
+    foreach ($items as $item) {
+        if (isset($threadCount[$type])) {
+            $threadCount[$type]++;
+        }
+        if (!empty($item['_max_depth_reached'])) {
+            $threadCount['truncated'] = true;
+        }
+        $countThread($item['Note'] ?? [], 'Note');
+        $countThread($item['Opinion'] ?? [], 'Opinion');
+    }
+};
+$countThread($notes, 'Note');
+$countThread($opinions, 'Opinion');
+$countThread($relationships, 'Relationship');
+$counter = function ($type, $direct) use ($threadCount) {
+    $all = $threadCount[$type];
+    $label = $all . ($threadCount['truncated'] ? '+' : '');
+    if ($all === $direct) {
+        return h($label);
+    }
+    return sprintf(
+        '%s <span class="fw-normal text-muted text-lowercase">&middot; %s</span>',
+        h($label), h(__('%s direct', $direct))
+    );
+};
+
 /*
  * The accent an analyst-data type is drawn in, held as a scope name rather than
  * a colour: the section label above a group and the left rule a nested card
@@ -142,7 +172,7 @@ $metaLine = function ($item) {
 // Renders a Note/Opinion item card, then recurses into the child notes/opinions
 // attached to it (analyst data on analyst data), indented under the parent.
 // $nested draws the left rule in the item's own accent
-$renderNode = function ($item, $type, $nested = false) use (&$renderNode, $opinionBadge, $itemActions, $metaLine, $distBadge, $accentOf) {
+$renderNode = function ($item, $type, $nested = false) use (&$renderNode, $baseurl, $opinionBadge, $itemActions, $metaLine, $distBadge, $accentOf) {
     $cardAttrs = 'class="border rounded p-2 ov-ad-nested" style="--ov-ad-accent: ' . $accentOf($type)['colour'] . ';"';
     ob_start();
     ?>
@@ -172,6 +202,11 @@ $renderNode = function ($item, $type, $nested = false) use (&$renderNode, $opini
                 <?php foreach ($childNotes as $cn) { echo $renderNode($cn, 'Note', true); } ?>
                 <?php foreach ($childOpinions as $co) { echo $renderNode($co, 'Opinion', true); } ?>
             </div>
+        <?php elseif (!empty($item['_max_depth_reached'])): ?>
+            <a href="#" class="d-inline-block mt-2 ms-3 small text-decoration-none"
+               onclick="event.preventDefault(); openModalChained('<?= h($baseurl . '/analystData/viewForObject/' . $type . '/' . rawurlencode($item['uuid'])) ?>');">
+                <i class="fas fa-reply-all me-1"></i><?= __('Continue this thread') ?>
+            </a>
         <?php endif; ?>
     </div>
     <?php
@@ -205,7 +240,7 @@ $renderNode = function ($item, $type, $nested = false) use (&$renderNode, $opini
         <?php if (!empty($notes)): ?>
             <div>
                 <div class="<?= h($accentOf('Note')['textClass']) ?> fw-bold text-uppercase mb-2" style="font-size:.65rem; letter-spacing:.1em;">
-                    <i class="misp-icon misp-icon-analyst-note misp-simple me-1"></i><?= __('Notes') ?> (<?= count($notes) ?>)
+                    <i class="misp-icon misp-icon-analyst-note misp-simple me-1"></i><?= __('Notes') ?> (<?= $counter('Note', count($notes)) ?>)
                 </div>
                 <div class="d-flex flex-column gap-2">
                     <?php foreach ($notes as $note) { echo $renderNode($note, 'Note'); } ?>
@@ -217,7 +252,7 @@ $renderNode = function ($item, $type, $nested = false) use (&$renderNode, $opini
         <?php if (!empty($opinions)): ?>
             <div>
                 <div class="<?= h($accentOf('Opinion')['textClass']) ?> fw-bold text-uppercase mb-2" style="font-size:.65rem; letter-spacing:.1em;">
-                    <i class="misp-icon misp-icon-analyst-opinion misp-simple me-1"></i><?= __('Opinions') ?> (<?= count($opinions) ?>)
+                    <i class="misp-icon misp-icon-analyst-opinion misp-simple me-1"></i><?= __('Opinions') ?> (<?= $counter('Opinion', count($opinions)) ?>)
                 </div>
                 <div class="d-flex flex-column gap-2">
                     <?php foreach ($opinions as $op) { echo $renderNode($op, 'Opinion'); } ?>

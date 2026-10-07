@@ -454,11 +454,15 @@ class AnalystDataController extends AppController
         foreach (['Note', 'Opinion', 'Relationship'] as $type) {
             $this->loadModel($type);
             $this->{$type}->current_user = $user;
-            // fetchRecursive → afterFind nests each item's own child notes/opinions
-            // (analyst data attached to analyst data), so the card can show the thread.
-            $this->{$type}->fetchRecursive = true;
+            $this->{$type}->fetchRecursive = false;
+        }
+        // afterFind's own recursion stops two levels down; walk the thread
+        // explicitly so replies to replies are shown too.
+        foreach (['Note', 'Opinion', 'Relationship'] as $type) {
             $fetched = $this->{$type}->fetchForUuids([$object_uuid], $user);
-            $analystData[$type] = $fetched[$object_uuid][$type] ?? [];
+            foreach ($fetched[$object_uuid][$type] ?? [] as $item) {
+                $analystData[$type][] = $this->{$type}->fetchChildNotesAndOpinions($user, $item, false, 4);
+            }
         }
         $this->loadModel('Relationship');
         $this->Relationship->current_user = $user;
