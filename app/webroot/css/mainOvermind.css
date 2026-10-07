@@ -758,7 +758,7 @@ body[data-controller="users"][data-action="change_pw"] {
 }
 
 .idx-view-anim {
-    animation: idxViewFade .82s ease-out both;
+    animation: idxViewFade .82s ease-out backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

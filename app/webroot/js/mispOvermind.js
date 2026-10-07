@@ -595,6 +595,9 @@ function animateIndexView(el) {
     el.classList.remove('idx-view-anim');
     void el.offsetWidth;
     el.classList.add('idx-view-anim');
+    el.addEventListener('animationend', function () {
+        el.classList.remove('idx-view-anim');
+    }, { once: true });
 }
 
 /**
