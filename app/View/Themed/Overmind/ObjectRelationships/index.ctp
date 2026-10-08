@@ -25,6 +25,7 @@ $fields = [
     [
         'element' => 'checkbox',
         'data_path' => 'id',
+        'highlight_path' => 'highlighted',
         'card_section' => 'selector',
     ],
     [
