@@ -25,6 +25,7 @@ App::uses('LogableBehavior', 'Assets.models/behaviors');
 App::uses('RandomTool', 'Tools');
 App::uses('FileAccessTool', 'Tools');
 App::uses('JsonTool', 'Tools');
+App::uses('ColumnLimits', 'Tools');
 App::uses('RedisTool', 'Tools');
 App::uses('BetterCakeEventManager', 'Tools');
 App::uses('Folder', 'Utility');
@@ -279,6 +280,55 @@ class AppModel extends Model
             return true;
         }
         return ucfirst($field) . ' cannot be empty.';
+    }
+
+    // A TEXT column holds 65,535 bytes, not characters: CakePHP's maxLength
+    // counts characters, so multi-byte text could still overflow the column.
+    public function maxBytes(array $value, $limit)
+    {
+        return strlen((string)reset($value)) <= $limit;
+    }
+
+    /** @var bool */
+    private $columnLimitRulesAdded = false;
+
+    /**
+     * Every save validates through here, so this is where each text column
+     * gets a rule for its own length: in strict mode a value that does not fit
+     * is a PDOException, which the user only ever sees as an internal error.
+     */
+    public function validates($options = array())
+    {
+        if (!$this->columnLimitRulesAdded) {
+            $this->columnLimitRulesAdded = true;
+            $this->addColumnLimitRules();
+        }
+        return parent::validates($options);
+    }
+
+    private function addColumnLimitRules()
+    {
+        foreach (ColumnLimits::of($this) as $field => $limit) {
+            $rules = $this->validate[$field] ?? [];
+            if (!is_array($rules) || isset($rules['rule'])) {
+                $rules = $rules === [] ? [] : ['custom' => $rules];
+            }
+            if (isset($rules['maxLength']) || isset($rules['maxBytes'])) {
+                continue;
+            }
+            $rules['columnLimit'] = [
+                'rule' => ['fitsColumn', $limit],
+                'message' => ColumnLimits::message($field, $limit),
+                'allowEmpty' => true,
+                'required' => false,
+            ];
+            $this->validate[$field] = $rules;
+        }
+    }
+
+    public function fitsColumn(array $value, array $limit)
+    {
+        return ColumnLimits::fits(reset($value), $limit);
     }
 
     public function valueIsJsonOrString($value)

@@ -234,6 +234,10 @@ class Event extends AppModel
                 'rule' => array('valueNotEmpty'),
                 'required' => true
             ),
+            'maxBytes' => array(
+                'rule' => array('maxBytes', 65535),
+                'message' => 'Event info cannot be longer than 65535 bytes.',
+            ),
         ),
         'user_id' => array(
             'numeric' => array(

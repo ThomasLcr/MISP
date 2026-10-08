@@ -4522,11 +4522,11 @@ class EventsController extends AppController
                     } else {
                         if ($add === 'blocked') {
                             $this->Flash->error(__('A blocklist entry is blocking you from creating any events. Please contact the administration team of this instance') . (Configure::read('MISP.contact') ? ' at ' . Configure::read('MISP.contact') : '') . '.');
+                        } else if ($this->theme === "Overmind") {
+                            $this->Flash->error($this->__saveFailMessage($validationErrors));
+                            $this->redirect(array('action' => 'index'));
                         } else {
                             $this->Flash->error(__('The event could not be saved. Please, try again.'), 'default', array(), 'error');
-                            if ($this->theme === "Overmind") {
-                                $this->redirect(array('action' => 'index'));
-                            }
                         }
                     }
                 }
@@ -5361,6 +5361,8 @@ class EventsController extends AppController
                 } else {
                     $this->redirect(array('action' => 'view', $id));
                 }
+            } else if ($this->theme === "Overmind") {
+                $this->Flash->error($this->__saveFailMessage($this->Event->validationErrors));
             } else {
                 $this->Flash->error(__('The event could not be saved. Please, try again.'));
             }
@@ -5404,10 +5406,25 @@ class EventsController extends AppController
         $this->set('fieldDesc', $fieldDesc);
         $this->set('eventDescriptions', $this->Event->fieldDescriptions);
         $this->set('event', $event);
-        if ($this->theme === "Overmind"){
+        if ($this->theme === "Overmind" && $this->request->is('ajax')) {
             $this->layout = false;
         }
         $this->render('add');
+    }
+
+    private function __saveFailMessage($validationErrors)
+    {
+        $reasons = [];
+        array_walk_recursive($validationErrors, function ($message) use (&$reasons) {
+            if (is_string($message)) {
+                $reasons[] = $message;
+            }
+        });
+        $reasons = array_unique($reasons);
+        if (empty($reasons)) {
+            return __('The event could not be saved. Please, try again.');
+        }
+        return __('The event could not be saved: %s', implode(' ', $reasons));
     }
 
     public function delete($id = null)

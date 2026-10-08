@@ -3900,6 +3900,63 @@ function installRequiredFieldGuard() {
 installRequiredFieldGuard();
 
 /*******************************
+ * installLengthGuards
+ * A form field carries its column's length as `maxlength` (MispFormHelper), and
+ * the browser cuts a paste at that length without a word — so say it did. A
+ * free-text box outside a POST form is a search or a filter: its text ends up
+ * in the URL, where nginx answers 414 long before any column is reached, so it
+ * gets a cap of its own the first time it is focused.
+ *******************************/
+var SEARCH_MAX_LENGTH = 512;
+var lengthGuardsInstalled = false;
+function installLengthGuards() {
+    if (lengthGuardsInstalled) { return; }
+    lengthGuardsInstalled = true;
+
+    function isTextField(el) {
+        if (el instanceof HTMLTextAreaElement) { return true; }
+        return el instanceof HTMLInputElement
+            && ['text', 'search', 'email', 'url', 'tel', ''].indexOf(el.type) !== -1;
+    }
+
+    document.addEventListener('focusin', function (e) {
+        var el = e.target;
+        if (!(el instanceof HTMLInputElement) || !isTextField(el)) { return; }
+        if (el.hasAttribute('maxlength')) { return; }
+        var form = el.form || el.closest('form');
+        if (form && String(form.getAttribute('method') || '').toLowerCase() === 'post') { return; }
+        el.maxLength = SEARCH_MAX_LENGTH;
+    }, true);
+
+    document.addEventListener('paste', function (e) {
+        var el = e.target;
+        if (!isTextField(el) || !(el.maxLength > 0) || !e.clipboardData) { return; }
+        var pasted = e.clipboardData.getData('text').length;
+        var kept = el.value.length - ((el.selectionEnd || 0) - (el.selectionStart || 0));
+        if (kept + pasted <= el.maxLength) { return; }
+
+        var anchor = el.closest('.input-group') || el;
+        var next = anchor.nextElementSibling;
+        if (next && next.classList.contains('ov-length-notice')) { next.remove(); }
+        var msg = document.createElement('div');
+        msg.className = 'ov-field-error ov-length-notice';
+        var icon = document.createElement('i');
+        icon.className = 'fas fa-scissors';
+        var text = document.createElement('span');
+        text.textContent = 'The pasted text was cut to ' + el.maxLength + ' characters, the most this field can hold.';
+        msg.appendChild(icon);
+        msg.appendChild(text);
+        anchor.parentNode.insertBefore(msg, anchor.nextSibling);
+
+        // The paste fires an input event of its own; only a later edit clears.
+        setTimeout(function () {
+            el.addEventListener('input', function () { msg.remove(); }, { once: true });
+        }, 0);
+    }, true);
+}
+installLengthGuards();
+
+/*******************************
  * installOnDemandActions
  * One delegated listener for every IndexTable/Fields/on_demand cell: GET the
  * cell's url, or POST its text box as `value`, and list the JSON answer's
@@ -5536,20 +5593,37 @@ function initEventForm(container) {
         if (!info) { return; }
         var message = info.dataset.requiredMsg
             || 'Please provide a name for the event.';
+        var maxBytes = parseInt(info.dataset.maxBytes, 10) || 0;
+        var tooLongMessage = info.dataset.maxBytesMsg || 'Event info is too long.';
 
-        function validate(quiet) {
-            if (info.value.trim()) {
-                markValid(info);
-                return null;
-            }
-            if (!quiet) { markInvalid(info, message); }
-            return info;
+        /* The column limit is in bytes, so count what UTF-8 will store. */
+        function tooLong() {
+            return maxBytes > 0
+                && new TextEncoder().encode(info.value).length > maxBytes;
         }
 
-        /* Only ever clears while typing: nagging about an empty field the user
-         * has not finished with is what the submit check is for. */
+        function validate(quiet) {
+            if (!info.value.trim()) {
+                if (!quiet) { markInvalid(info, message); }
+                return info;
+            }
+            if (tooLong()) {
+                if (!quiet) { markInvalid(info, tooLongMessage); }
+                return info;
+            }
+            markValid(info);
+            return null;
+        }
+
+        /* An empty field only clears while typing (the submit check nags about
+         * it); an oversized one is said at once, since it usually comes from a
+         * paste the user cannot see the end of. */
         info.addEventListener('input', function () {
-            if (info.value.trim()) { markValid(info); }
+            if (tooLong()) {
+                markInvalid(info, tooLongMessage);
+            } else if (info.value.trim()) {
+                markValid(info);
+            }
         });
         validators.push(validate);
     }
