@@ -263,6 +263,8 @@ if (!empty($groupSource)) {
                                 'id' => 'ObjectFirstSeen',
                                 'mode' => 'datetime',
                                 'accent' => 'object',
+                                'before' => '#ObjectLastSeen',
+                                'rangeMsg' => __('First seen cannot be later than last seen.'),
                             ]) ?>
                         </div>
                         <div class="col-md-6">
