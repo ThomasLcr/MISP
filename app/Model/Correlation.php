@@ -1175,6 +1175,23 @@ class Correlation extends AppModel
         );
     }
 
+    /**
+     * Whether this value matches an entry in `correlation_exclusions`.
+     *
+     * The exclusion list is matched with leading and trailing `%`
+     * wildcards, so the answer is not a lookup a caller can do for
+     * itself without restating the matching rule. `__preventExcludedCorrelations`
+     * already owns that rule; this is the only way to ask it from
+     * outside, and it is a read with no side effect.
+     *
+     * @param string $value
+     * @return bool
+     */
+    public function isValueExcluded($value)
+    {
+        return $this->__preventExcludedCorrelations($value);
+    }
+
     public function attachExclusionsToOverCorrelations($data)
     {
         foreach ($data as $k => $v) {

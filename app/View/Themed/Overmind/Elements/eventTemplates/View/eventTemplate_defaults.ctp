@@ -17,10 +17,10 @@ $analysisMap = [
 ];
 // Backend threat levels: 1=High, 2=Medium, 3=Low, 4=Undefined.
 $threatMap = [
-    1 => ['label' => __('High'), 'color' => '#dc3545', 'icon' => 'fa-exclamation-circle'],
-    2 => ['label' => __('Medium'), 'color' => '#fd7e14', 'icon' => 'fa-exclamation-triangle'],
-    3 => ['label' => __('Low'), 'color' => '#ffc107', 'icon' => 'fa-minus-circle'],
-    4 => ['label' => __('Undefined'), 'color' => '#41464b', 'icon' => 'fa-question-circle'],
+    1 => ['label' => __('High'), 'tone' => 'red', 'color' => '#dc3545', 'icon' => 'fa-exclamation-circle'],
+    2 => ['label' => __('Medium'), 'tone' => 'orange', 'color' => '#fd7e14', 'icon' => 'fa-exclamation-triangle'],
+    3 => ['label' => __('Low'), 'tone' => 'yellow', 'color' => '#ffc107', 'icon' => 'fa-minus-circle'],
+    4 => ['label' => __('Undefined'), 'tone' => 'gray', 'color' => '#41464b', 'icon' => 'fa-question-circle'],
 ];
 
 $infoTemplate = (string)($defaults['info_template'] ?? '');
@@ -82,11 +82,14 @@ $defaultTags = is_array($defaults['tags'] ?? null) ? $defaults['tags'] : [];
                 <div class="col-md-4">
                     <div class="text-muted small text-uppercase fw-bold mb-1"><?= __('Threat level') ?></div>
                     <div class="py-1">
-                        <?php if ($threat !== null): ?>
+                        <?php if ($threat !== null):
+                            $solid = sprintf('var(--misp-tone-%s-solid, %s)', $threat['tone'], $threat['color']);
+                            $fg = sprintf('var(--misp-tone-%s-fg, %s)', $threat['tone'], $threat['color']);
+                        ?>
                             <span class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
-                                  style="background:<?= h($threat['color']) ?>1a;
-                                         color:<?= h($threat['color']) ?>;
-                                         border:1px solid <?= h($threat['color']) ?>40;">
+                                  style="background:color-mix(in srgb, <?= h($solid) ?> 10.2%, transparent);
+                                         color:<?= h($fg) ?>;
+                                         border:1px solid color-mix(in srgb, <?= h($solid) ?> 25.1%, transparent);">
                                 <i class="fas <?= h($threat['icon']) ?>"></i>
                                 <?= h($threat['label']) ?>
                             </span>

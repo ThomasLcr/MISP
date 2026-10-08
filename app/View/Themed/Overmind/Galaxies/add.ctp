@@ -58,6 +58,36 @@ echo $this->Form->create('Galaxy', [
         </div>
     </div>
 
+    <!-- CATEGORY / KIND -->
+    <div class="row g-3 mt-0">
+        <div class="col-md-6">
+            <?= $this->Form->label('category', __('Category'), ['class' => 'form-label fw-semibold']) ?>
+            <?= $this->Form->select('category', $galaxyCategories, [
+                'class' => 'form-select bg-light',
+                'empty' => __('Not classified'),
+            ]) ?>
+            <div class="form-text" id="GalaxyCategoryDefinition"
+                 data-default="<?= h(__('What this galaxy\'s clusters represent. Left unset means nobody has classified it.')) ?>">
+                <?= __('What this galaxy\'s clusters represent. Left unset means nobody has classified it.') ?>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <?= $this->Form->label('kind', __('Kind'), ['class' => 'form-label fw-semibold']) ?>
+            <?= $this->Form->select('kind', array_filter($galaxyKinds), [
+                'class' => 'form-select bg-light',
+                'empty' => __('No kind'),
+                // Without it CakePHP drops an option whose label matches an
+                // optgroup's - `technique` and `reference` are each a category
+                // and a kind, and would render nowhere.
+                'showParents' => true,
+            ]) ?>
+            <div class="form-text">
+                <?= __('The finer distinction inside the category. Optional even when a category is set.') ?>
+            </div>
+        </div>
+    </div>
+
     <!-- DESCRIPTION -->
     <div class="mt-3">
         <?= $this->Form->label('description', __('Description'), ['class' => 'form-label fw-semibold']) ?>
@@ -155,5 +185,58 @@ echo $this->Form->create('Galaxy', [
 </div>
 
 <?= $this->Form->end(); ?>
+
+<script>
+/* The second select offers the kinds in use under the category chosen in the
+ * first - upstream's schema does not constrain one to the other, but offering
+ * `actor` under `detection` would be offering nonsense. */
+(function () {
+    var kinds = <?= json_encode($galaxyKinds, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+    var definitions = <?= json_encode($galaxyCategoryDescriptions, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
+    var category = document.getElementById('GalaxyCategory');
+    var kind = document.getElementById('GalaxyKind');
+    var definition = document.getElementById('GalaxyCategoryDefinition');
+    if (!category || !kind) {
+        return;
+    }
+    var noKind = kind.querySelector('option[value=""]');
+    noKind = noKind ? noKind.textContent : '';
+
+    function option(value, label) {
+        var el = document.createElement('option');
+        el.value = value;
+        el.textContent = label;
+        return el;
+    }
+
+    function refresh(reset) {
+        var chosen = category.value;
+        var current = reset ? '' : kind.value;
+        var available = kinds[chosen] || {};
+        kind.innerHTML = '';
+        kind.appendChild(option('', noKind));
+        var offered = false;
+        Object.keys(available).forEach(function (name) {
+            kind.appendChild(option(name, available[name]));
+            offered = offered || name === current;
+        });
+        /* A kind set from outside this form - over the API, or by a definition
+         * file - stays on offer, so opening the form and saving it does not
+         * quietly drop what is stored. */
+        if (current && !offered) {
+            kind.appendChild(option(current, current));
+        }
+        kind.value = current;
+        if (definition) {
+            definition.textContent = definitions[chosen]
+                || definition.dataset.default || '';
+        }
+    }
+
+    category.addEventListener('change', function () { refresh(true); });
+    refresh(false);
+})();
+</script>
 
 

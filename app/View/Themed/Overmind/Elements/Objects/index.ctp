@@ -30,6 +30,8 @@ $canTagObj = isset($event)
 
 $_enrichmentEnabled = (bool)Configure::read('Plugin.Enrichment_services_enable');
 $_cortexEnabled = (bool)Configure::read('Plugin.Cortex_services_enable');
+$_mayGraph = $this->Acl->canAccess('analystGraphs', 'addNodes');
+$_mayCollect = $this->Acl->canAccess('collectionElements', 'addElementToCollection');
 
 // Extended / extending event view: an object can belong to any event of the
 // merged set, so its card says which one and wears that event's accent.
@@ -216,6 +218,8 @@ $foldChildren = empty($objects) ? [] : [
             $objStyle    = $ctx['style'];
             $objCanEdit  = $ctx['canEdit'];
             $objCanTag   = $ctx['canTag'];
+            $_canGraph   = !$isDeleted && $_mayGraph;
+            $_canCollect = !$isDeleted && $_mayCollect;
         ?>
         <div class="accordion-item shadow-sm mb-2 rounded border<?= $isDeleted ? ' opacity-50' : '' ?>"
              style="<?= h($objStyle) ?>"
@@ -366,8 +370,24 @@ $foldChildren = empty($objects) ? [] : [
                                 </a>
                             <?php endif; ?>
                         <?php endif; ?>
+                        <?php if ($_canGraph): ?>
+                            <a href="#" class="btn btn-sm btn-outline-info<?= $objCanEdit ? '' : ' ms-auto' ?>"
+                               data-intel-graph-add="<?= h(json_encode([['type' => 'Object', 'uuid' => $object['uuid'], 'label' => $object['name']]])) ?>">
+                                <i class="fas fa-circle-nodes me-1"></i>
+                                <?= __('Add to graph') ?>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($_canCollect): ?>
+                            <?php $collectUrl = $baseurl . '/collectionElements/addElementToCollection/Object/' . h($object['uuid']); ?>
+                            <a href="<?= $collectUrl ?>"
+                               class="btn btn-sm btn-outline-dark<?= ($objCanEdit || $_canGraph) ? '' : ' ms-auto' ?>"
+                               onclick="event.preventDefault(); openModal('<?= $collectUrl ?>', 'xl');">
+                                <i class="fas fa-folder-plus me-1"></i>
+                                <?= __('Add to collection') ?>
+                            </a>
+                        <?php endif; ?>
                         <?php if (!empty($me['Role']['perm_analyst_data'])): ?>
-                            <div class="<?= $objCanEdit ? '' : 'ms-auto' ?>">
+                            <div class="<?= ($objCanEdit || $_canGraph || $_canCollect) ? '' : 'ms-auto' ?>">
                                 <?= $this->element('AnalystData/add_controls', [
                                     'objectType' => 'Object',
                                     'objectUuid' => $object['uuid'] ?? '',

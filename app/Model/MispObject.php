@@ -811,6 +811,60 @@ class MispObject extends AppModel
     }
 
     /**
+     * Live objects the user may read, as an event payload shapes them: each
+     * with its readable attributes, their tags and warninglist hits.
+     * Local tags are only the owning organisation's to see.
+     *
+     * @param array $user
+     * @param array $conditions
+     * @return array keyed by object uuid
+     */
+    public function fetchGraphObjects(array $user, array $conditions)
+    {
+        $conditions['Object.deleted'] = 0;
+        $rows = $this->fetchObjects($user, ['conditions' => $conditions]);
+        $objects = [];
+        foreach ($rows as $row) {
+            $object = $row['Object'];
+            $object['Attribute'] = $this->graphAttributes($user, $row['Attribute'] ?? [], $row['Event']['org_id'] ?? null);
+            $objects[$object['uuid']] = $object;
+        }
+        return $objects;
+    }
+
+    /**
+     * Attributes of one event, each with its AttributeTag, as
+     * fetchGraphObjects() shapes them.
+     *
+     * @param array $user
+     * @param array $attributes
+     * @param int|string|null $eventOrgId the owner of the event they are in
+     * @return array
+     */
+    public function graphAttributes(array $user, array $attributes, $eventOrgId)
+    {
+        $seesLocal = !empty($user['Role']['perm_site_admin']) || (string)$eventOrgId === (string)$user['org_id'];
+        $out = [];
+        foreach ($attributes as $attribute) {
+            $tags = [];
+            foreach ($attribute['AttributeTag'] ?? [] as $attributeTag) {
+                if (empty($attributeTag['Tag']) || (!empty($attributeTag['local']) && !$seesLocal)) {
+                    continue;
+                }
+                $tags[] = $attributeTag['Tag'] + [
+                    'local' => !empty($attributeTag['local']),
+                    'relationship_type' => $attributeTag['relationship_type'] ?? null,
+                ];
+            }
+            unset($attribute['AttributeTag']);
+            $attribute['Tag'] = $tags;
+            $out[] = $attribute;
+        }
+        ClassRegistry::init('Warninglist')->attachWarninglistToAttributes($out);
+        return $out;
+    }
+
+    /**
      * The display order an object's fields are meant to be read in, per
      * template.
      *
@@ -1344,6 +1398,19 @@ class MispObject extends AppModel
         }
         $this->Event->captureAnalystData($user, $object['Object'], 'Object', $object['Object']['uuid']);
         return true;
+    }
+
+    /**
+     * @param array $object An object with its `template_uuid` and `Attribute`s
+     * @param int $eventId
+     * @return string|null The uuid of the object the event already holds with
+     *   the same template and attributes
+     */
+    public function duplicateObjectUuid(array $object, $eventId)
+    {
+        $duplicatedObjectId = $duplicateObjectUuid = null;
+        $duplicate = $this->checkForDuplicateObjects(['Object' => $object], $eventId, $duplicatedObjectId, $duplicateObjectUuid);
+        return $duplicate ? $duplicateObjectUuid : null;
     }
 
     /**

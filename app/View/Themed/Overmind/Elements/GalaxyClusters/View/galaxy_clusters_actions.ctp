@@ -39,6 +39,15 @@ $actions[] = [
     'label' => __('View correlation graph'),
 ];
 
+if ($this->Acl->canAccess('analystGraphs', 'addNodes') && !$isDeleted) {
+    $actions[] = [
+        'url' => '#',
+        'icon' => 'fas fa-circle-nodes',
+        'label' => __('Add to graph'),
+        'attributes' => ['data-intel-graph-add' => json_encode([['type' => 'GalaxyCluster', 'uuid' => $uuid, 'label' => $data['value']]])],
+    ];
+}
+
 if (!$isDefault) {
     $actions[] = [
         'url' => "$baseurl/galaxy_clusters/export_for_misp_galaxy/$id",

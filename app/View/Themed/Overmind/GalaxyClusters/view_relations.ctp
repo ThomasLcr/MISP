@@ -27,14 +27,19 @@ $fields = [
         'name' => __('Target (galaxy :: cluster)'),
         'data_path' => 'GalaxyCluster',
         'element' => 'custom',
-        'function' => function ($row) use ($baseurl) {
+        'function' => function ($row) {
             $t = $row['GalaxyCluster'] ?? null;
             if (empty($t) || empty($t['id'])) {
                 return '<span class="text-muted">-</span>';
             }
-            $galaxyName = $t['Galaxy']['name'] ?? ($t['Galaxy']['type'] ?? '');
-            $label = ($galaxyName !== '' ? h($galaxyName) . ' :: ' : '') . h($t['value'] ?? '');
-            return '<a href="' . $baseurl . '/galaxy_clusters/view/' . h($t['id']) . '" class="text-decoration-none fw-semibold">' . $label . '</a>';
+            return $this->TagChip->cluster([
+                'id' => $t['id'],
+                'value' => $t['value'] ?? '',
+                'galaxy' => $t['Galaxy']['name'] ?? ($t['Galaxy']['type'] ?? ''),
+                'galaxy_id' => $t['Galaxy']['id'] ?? null,
+                'icon' => $t['Galaxy']['icon'] ?? null,
+                'description' => $t['description'] ?? null,
+            ]);
         },
     ],
     [

@@ -5,7 +5,7 @@
  */
 
 $this->set('headerTitle', __('Analyst Data'));
-$this->set('headerDescription', __('Notes, opinions and relationships enriching your MISP data. Pick a collection to explore.'));
+$this->set('headerDescription', __('Notes, opinions, relationships and graphs enriching your MISP data. Pick a collection to explore.'));
 
 $types = [
     'Note' => [
@@ -26,6 +26,12 @@ $types = [
         'title'       => __('Relationships'),
         'description' => __('Typed links connecting two MISP data points together.'),
     ],
+    'Graph' => [
+        'icon'        => 'fas fa-circle-nodes',
+        'color'       => 'info',
+        'title'       => __('Graphs'),
+        'description' => __('Drawings of how records relate, kept on a collection, an event or a galaxy cluster.'),
+    ],
 ];
 
 $selectedType = $selectedType ?? null;
@@ -34,7 +40,7 @@ if (!isset($types[$selectedType])) {
 }
 
 
-if (!empty($selectedType) && !empty($me['Role']['perm_analyst_data'])) {
+if (!empty($selectedType) && $selectedType !== 'Graph' && !empty($me['Role']['perm_analyst_data'])) {
     $this->set('headerActions', [
         [
             'type'  => 'modal',
@@ -58,7 +64,7 @@ if (!empty($selectedType) && !empty($me['Role']['perm_analyst_data'])) {
                     ? $baseurl . '/analystData/index'
                     : $baseurl . '/analystData/index/' . $type;
             ?>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-6 col-xxl-3">
                 <div class="card h-100 shadow-sm border-0 border-start border-4 border-<?= $color ?> analyst-hub-card position-relative <?= $isActive ? 'analyst-hub-card-active' : '' ?>">
                     <div class="card-body d-flex flex-column p-4">
 
@@ -104,7 +110,7 @@ if (!empty($selectedType) && !empty($me['Role']['perm_analyst_data'])) {
             <div class="tab-pane active" role="tabpanel">
                 <div id="adIndexContainer" class="ajax-tab-content"
                     data-url="<?= h($baseurl . '/analystData/index/' . $selectedType) ?>">
-                    <div class="text-center p-4"><div class="spinner-border"></div></div>
+                    <div class="p-4"><?= $this->element('genericElementsBS5/loader') ?></div>
                 </div>
             </div>
         </div>

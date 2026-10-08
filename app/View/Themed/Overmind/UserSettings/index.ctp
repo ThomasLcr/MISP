@@ -72,18 +72,7 @@ $fields = [
         'element' => 'custom',
         'function' => function (array $row) use ($settingDescriptions) {
             $setting = $row['UserSetting']['setting'] ?? '';
-            $description = $settingDescriptions[$setting] ?? '';
-            $nameClass = 'font-monospace small text-primary text-nowrap';
-            if ($description === '') {
-                return '<span class="' . $nameClass . '">' . h($setting) . '</span>';
-            }
-            return '<span class="d-inline-flex align-items-center gap-2 rounded-1 focus-ring ' . $nameClass . '"'
-                . ' tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top"'
-                . ' title="' . h($description) . '">'
-                . '<span class="text-decoration-none link-underline-primary'
-                . ' link-underline-opacity-50 link-offset-1">' . h($setting) . '</span>'
-                . '<i class="fas fa-circle-info text-body-secondary" aria-hidden="true"></i>'
-                . '</span>';
+            return '<code class="text-primary">' . h($setting) . '</code>';
         },
         'card_section' => 'title',
         'display_in' => ['table', 'card'],

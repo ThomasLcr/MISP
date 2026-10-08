@@ -1,8 +1,7 @@
 <?php
-
-use PHPUnit\Framework\MockObject\InvalidMethodNameException;
-
 App::uses('AppController', 'Controller');
+App::uses('ValueUrlTool', 'Tools/ValueProfile');
+App::uses('Value', 'Model');
 
 class CollectionElementsController extends AppController
 {
@@ -48,46 +47,35 @@ class CollectionElementsController extends AppController
     }
 
     /**
-     * Authorise the objects a collection element points at.
+     * Authorise the records collection elements point at.
      *
      * A collection element is a bare UUID that the model never checks against
      * the caller's ACL, and the read side resolves those UUIDs back into real
-     * objects when the collection is rendered. Both write paths must therefore
+     * records when the collection is rendered. Every write path must therefore
      * refuse a UUID the caller cannot read - otherwise a collection is a
      * self-service handle on another organisation's private data, which is
      * what made the beta collection view disclose org-only events (V17).
      *
-     * @param string|null $elementType 'Event' or 'GalaxyCluster'. Empty when the
-     *      caller omitted it, in which case CollectionElement::beforeValidate()
-     *      deduces it on save - so deduce it the same way here, or the guard
-     *      could be skipped simply by leaving the field out.
+     * @param string|null $elementType Empty when the caller omitted it, in
+     *      which case CollectionElement::beforeValidate() deduces it on save -
+     *      so deduce it the same way here, or the guard could be skipped simply
+     *      by leaving the field out.
      * @param array $elementUuids
      * @throws NotFoundException
      */
     private function __assertCanUseElements($elementType, array $elementUuids)
     {
-        $user = $this->Auth->user();
+        $byType = [];
         foreach ($elementUuids as $elementUuid) {
             $type = empty($elementType)
                 ? $this->CollectionElement->deduceType($elementUuid)
                 : $elementType;
-            if ($type === 'Event') {
-                $this->loadModel('Event');
-                $event = $this->Event->fetchSimpleEvent($user, $elementUuid, [
-                    'fields' => ['Event.id']
-                ]);
-                if (empty($event)) {
-                    throw new NotFoundException(__('Invalid event or not authorized.'));
-                }
-            } elseif ($type === 'GalaxyCluster') {
-                $this->loadModel('GalaxyCluster');
-                $clusterCount = $this->GalaxyCluster->fetchGalaxyClusters($user, [
-                    'conditions' => ['GalaxyCluster.uuid' => $elementUuid],
-                    'count' => true
-                ]);
-                if (empty($clusterCount)) {
-                    throw new NotFoundException(__('Invalid galaxy cluster or not authorized.'));
-                }
+            $byType[$type][] = $elementUuid;
+        }
+        foreach ($byType as $type => $uuids) {
+            $readable = $this->CollectionElement->readableUuids($this->Auth->user(), $type, $uuids);
+            if (count(array_diff($uuids, $readable)) > 0) {
+                throw new NotFoundException(__('Invalid element or not authorized.'));
             }
         }
     }
@@ -103,10 +91,13 @@ class CollectionElementsController extends AppController
             'beforeSave' => function (array $collectionElement) use ($collection_id) {
                 // Guard the sink: this callback sees the exact row CRUD::add()
                 // is about to save, on both the form and the REST path.
-                $this->__assertCanUseElements(
-                    $collectionElement['CollectionElement']['element_type'] ?? null,
-                    $this->__normaliseElementUuids($collectionElement['CollectionElement']['element_uuid'] ?? null)
-                );
+                $elementType = $collectionElement['CollectionElement']['element_type'] ?? null;
+                if ($elementType !== 'Value') {
+                    $this->__assertCanUseElements(
+                        $elementType,
+                        $this->__normaliseElementUuids($collectionElement['CollectionElement']['element_uuid'] ?? null)
+                    );
+                }
                 $collectionElement['CollectionElement']['collection_id'] = intval($collection_id);
                 return $collectionElement;
             }
@@ -186,8 +177,23 @@ class CollectionElementsController extends AppController
         }
     }
 
+    /**
+     * For a Value element the second segment is the value itself, encoded as
+     * on /values/view; for every other type it is the element's UUID.
+     */
     public function addElementToCollection($element_type, $element_uuid)
     {
+        if (!in_array($element_type, $this->CollectionElement->valid_types, true)) {
+            throw new NotFoundException(__('Invalid element type.'));
+        }
+        $value = null;
+        if ($element_type === 'Value') {
+            $value = ValueUrlTool::decode($element_uuid);
+            if ($value === null || trim($value) === '') {
+                throw new NotFoundException(__('Invalid value.'));
+            }
+            $element_uuid = Value::uuidFor($value);
+        }
         $isOvermind = $this->theme === 'Overmind';
         if ($isOvermind && $this->request->is('ajax')) {
             $this->layout = false;
@@ -229,6 +235,7 @@ class CollectionElementsController extends AppController
             $this->set('alreadyInCollectionIds', $alreadyIn);
             $this->set('elementType', $element_type);
             $this->set('elementUuid', $element_uuid);
+            $this->set('elementValue', $value);
         } else if ($this->request->is('post')) {
             if (!isset($this->request->data['CollectionElement'])) {
                 $this->request->data = ['CollectionElement' => $this->request->data];
@@ -241,20 +248,24 @@ class CollectionElementsController extends AppController
                 throw new NotFoundException(__('Invalid collection or not authorized.'));
             }
             $description = empty($this->request->data['CollectionElement']['description']) ? '' : $this->request->data['CollectionElement']['description'];
-            $elementUuids = $this->__normaliseElementUuids($this->request->data['CollectionElement']['element_uuid'] ?? $element_uuid);
-            if (empty($elementUuids)) {
-                throw new NotFoundException(__('No element UUID specified.'));
+            if ($element_type === 'Value') {
+                $elementUuids = [$element_uuid];
+            } else {
+                $elementUuids = $this->__normaliseElementUuids($this->request->data['CollectionElement']['element_uuid'] ?? $element_uuid);
+                if (empty($elementUuids)) {
+                    throw new NotFoundException(__('No element UUID specified.'));
+                }
+                $this->__assertCanUseElements($element_type, $elementUuids);
             }
-            $this->__assertCanUseElements($element_type, $elementUuids);
 
             $result = true;
             $duplicateCount = 0;
-            $error = '';
             foreach ($elementUuids as $currentElementUuid) {
                 $dataToSave = [
                     'CollectionElement' => [
                         'element_uuid' => $currentElementUuid,
                         'element_type' => $element_type,
+                        'value' => $value,
                         'description' => $description,
                         'collection_id' => $collection_id
                     ]
@@ -274,16 +285,18 @@ class CollectionElementsController extends AppController
                     }
                 }
             }
-            if ($duplicateCount > 0) {
-                $error = ' ' . __n('%s selected event was already in the Collection.', '%s selected events were already in the Collection.', $duplicateCount, $duplicateCount);
-            }
 
             if ($result) {
-                $message = count($elementUuids) > 1
-                    ? __n('%s event added to the Collection.', '%s events added to the Collection.', count($elementUuids), count($elementUuids))
-                    : __('Element added to the Collection.');
-                if ($duplicateCount > 0) {
-                    $message .= $error;
+                $added = count($elementUuids) - $duplicateCount;
+                if (count($elementUuids) === 1) {
+                    $message = $duplicateCount
+                        ? __('Element already in the Collection.')
+                        : __('Element added to the Collection.');
+                } else {
+                    $message = __n('%s element added to the Collection.', '%s elements added to the Collection.', $added, $added);
+                    if ($duplicateCount > 0) {
+                        $message .= ' ' . __n('%s was already in it.', '%s were already in it.', $duplicateCount, $duplicateCount);
+                    }
                 }
                 if ($this->IndexFilter->isRest()) {
                     return $this->RestResponse->saveSuccessResponse('CollectionElements', 'addElementToCollection', false, $this->response->type(), $message);
@@ -292,9 +305,9 @@ class CollectionElementsController extends AppController
                     $this->redirect(Router::url($this->referer(), true));
                 }
             } else {
-                $message = __('Element could not be added to the Collection.%s', $error);
+                $message = __('Element could not be added to the Collection.');
                 if ($this->IndexFilter->isRest()) {
-                    return $this->RestResponse->saveFailResponse('CollectionElements', 'addElementToCollection', false, $message, $this->response->type());
+                    return $this->RestResponse->saveFailResponse('CollectionElements', 'addElementToCollection', false, $this->CollectionElement->validationErrors ?: $message, $this->response->type());
                 } else {
                     $this->Flash->error($message);
                     $this->redirect(Router::url($this->referer(), true));

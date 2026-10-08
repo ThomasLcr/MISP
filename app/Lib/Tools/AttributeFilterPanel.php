@@ -34,6 +34,7 @@ class AttributeFilterPanel
             ['name' => 'feed', 'label' => __('Feed hits'), 'options' => $inEvent ? $yesNo : null],
             ['name' => 'analystData', 'label' => __('Analyst data'), 'options' => $yesNo],
             ['name' => 'warning', 'label' => __('Matches a warninglist'), 'options' => $inEvent ? $yesNo : $any + ['2' => __('No')]],
+            ['name' => 'narrower', 'label' => __('Shared more narrowly'), 'options' => $inEvent ? $yesNo : null],
         ]);
         $children = [];
         foreach ($filters as $filter) {

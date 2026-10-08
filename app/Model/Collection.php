@@ -8,7 +8,8 @@ class Collection extends AppModel
     public $recursive = -1;
 
     public $actsAs = array(
-            'Containable'
+            'Containable',
+            'AnalystDataParent',
     );
 
     public $belongsTo = [

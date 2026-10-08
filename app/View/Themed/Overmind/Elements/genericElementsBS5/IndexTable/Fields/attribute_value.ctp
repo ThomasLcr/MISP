@@ -1,5 +1,7 @@
 <?php
 App::uses('MispAttribute', 'Model');
+App::uses('ValueUrlTool', 'Tools/ValueProfile');
+
 $attribute = Hash::extract($row, $field['data_path']);
 
 if (empty($attribute)) {
@@ -22,6 +24,43 @@ $hoverEnrichId = (Configure::read('Plugin.Enrichment_hover_enable') && !empty($m
     ? (int)$attribute['id'] : null;
 $hoverClickOnly = (bool)Configure::read('Plugin.Enrichment_hover_popover_only');
 
+/*
+ * The value hover card: the assessment of this value, floated beside
+ * the cursor. Off unless the instance asks for it — it is a database
+ * read per hover, and an instance that does not want to pay for one
+ * should not have to opt out of it.
+ *
+ * **Where it is on, it owns the hover.** Enrichment's hover form is
+ * suppressed rather than moved aside onto a second affordance: two
+ * popovers on one gesture is a race, and two triggers for one value is
+ * clutter that says the page could not decide. Enrichment is not lost —
+ * it is going into the card itself, which is the one place a reader
+ * asking about a value should have to look.
+ *
+ * Its *click* form is untouched. A magnifying glass that opens on click
+ * does not compete with a hover, and removing a working control before
+ * its replacement lands would be a regression dressed as a decision.
+ */
+$vpHoverValue = (Configure::read('MISP.value_hover_card')
+    && !empty($attribute['value']))
+    ? ValueUrlTool::encode($attribute['value'])
+    : null;
+if ($vpHoverValue !== null && $hoverEnrichId && !$hoverClickOnly) {
+    $hoverEnrichId = null;
+}
+
+/*
+ * The value, wrapped only where there is something to wrap it for, so
+ * an instance with the card off emits exactly the markup it did before.
+ */
+$vpValueHtml = h($attribute['value']);
+if ($vpHoverValue !== null) {
+    $vpValueHtml = '<span class="vp-hc-trigger"'
+        . ' data-vp-hc-value="' . h($vpHoverValue) . '"'
+        . ' title="' . h(__('Hover for this value\'s assessment')) . '">'
+        . $vpValueHtml . '</span>';
+}
+
 // The thumbnails are the default-size ones getThumbnail() caches (webp twice as
 // large, for a sharp render); the CSS sizes them down.
 $pictureUrl = null;
@@ -29,7 +68,6 @@ if (($attribute['type'] ?? '') === 'attachment' && !$isProposalRow && !empty($at
     && Validation::extension((string)$attribute['value'], MispAttribute::IMAGE_EXTENSIONS)) {
     $pictureUrl = $baseurl . '/attributes/viewPicture/' . (int)$attribute['id'];
 }
-
 
 $renderPropActions = function ($pid) use ($canModifyProposal, $baseurl) {
     if (!$canModifyProposal) {
@@ -78,7 +116,7 @@ $renderPropActions = function ($pid) use ($canModifyProposal, $baseurl) {
             </p>
         <?php elseif ($hoverEnrichId && $hoverClickOnly): ?>
             <p class="fw-semibold mb-0">
-                <?= h($attribute['value']); ?>
+                <?= $vpValueHtml; ?>
                 <i class="fas fa-magnifying-glass-plus text-muted ms-1 om-hover-enrichment"
                    role="button" tabindex="0"
                    data-hover-enrichment-id="<?= $hoverEnrichId ?>"
@@ -88,7 +126,7 @@ $renderPropActions = function ($pid) use ($canModifyProposal, $baseurl) {
             </p>
         <?php else: ?>
             <p class="fw-semibold mb-0">
-                <?= h($attribute['value']); ?>
+                <?= $vpValueHtml; ?>
             </p>
         <?php endif; ?>
 

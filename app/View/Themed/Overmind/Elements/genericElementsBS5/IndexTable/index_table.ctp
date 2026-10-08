@@ -29,15 +29,41 @@ foreach ($data['data'] as $k => $data_row) {
         $rowClass = call_user_func($data['row_class_callable'], $data_row);
     }
 
+    /*
+     * `row_data_callable` returns name => value pairs to hang on the <tr>
+     * as `data-` attributes. A row that has to be matched on several
+     * independent keys at once — the Value Profile's facet rail filters on
+     * type and organisation and tag together — cannot express that as a
+     * class string without the reader parsing class names back into
+     * fields. Names are restricted to what may follow `data-`; absent for
+     * every existing caller.
+     */
+    $rowData = array();
+    if (!empty($data['row_data_callable']) && is_callable($data['row_data_callable'])) {
+        $rowData = (array)call_user_func($data['row_data_callable'], $data_row);
+    }
+
     // For extending/extended View
     $rowStyle = '';
     if (!empty($data['row_style_callable']) && is_callable($data['row_style_callable'])) {
         $rowStyle = call_user_func($data['row_style_callable'], $data_row);
     }
+    // HTML placed at the start of the row's first cell
+    $rowMarker = '';
+    if (!empty($data['row_marker_callable']) && is_callable($data['row_marker_callable'])) {
+        $rowMarker = (string)call_user_func($data['row_marker_callable'], $data_row);
+    }
 
     $row = '<tr data-row-id="' . h($k) . '"';
     if (!empty($primary)) {
         $row .= ' data-primary-id="' . h($primary) . '"';
+    }
+    foreach ($rowData as $name => $value) {
+        $name = strtolower(preg_replace('/[^A-Za-z0-9-]/', '', (string)$name));
+        if ($name === '' || $value === null) {
+            continue;
+        }
+        $row .= ' data-' . $name . '="' . h($value) . '"';
     }
     if ($rowClass !== '') {
         $row .= ' class="' . h($rowClass) . '"';
@@ -56,6 +82,7 @@ foreach ($data['data'] as $k => $data_row) {
             'options' => $data['options'] ?? [],
             'actions' => $data['actions'] ?? [],
             'primary' => $primary,
+            'marker' => $rowMarker,
         ]
     );
 

@@ -1,4 +1,6 @@
 <?php
+App::uses('ValueUrlTool', 'Tools/ValueProfile');
+
 $element = Hash::extract($row, $field['data_path']);
 
 if (empty($element)) {
@@ -57,6 +59,38 @@ $isCard = isset($viewMode) && $viewMode === 'card';
                         ]
                     );
                 }
+            }
+            else if (in_array($element['element_type'], ['Attribute', 'Object'], true)) {
+                $isAttribute = $element['element_type'] === 'Attribute';
+                $target = $element[$element['element_type']] ?? null;
+                if (!empty($target)) {
+                    printf(
+                        '<a class="text-decoration-none d-inline-flex align-items-baseline gap-1 text-break" href="%s">'
+                            . '<span class="badge %s">%s</span>'
+                            . '<span class="text-body%s">%s</span>'
+                        . '</a>',
+                        h($baseurl . '/events/view2/' . $target['event_id']),
+                        $isAttribute ? 'bg-attribute' : 'bg-object',
+                        h($isAttribute ? $target['type'] : $target['name']),
+                        $isAttribute ? ' font-monospace' : '',
+                        h($isAttribute ? $target['value'] : $target['meta-category'])
+                    );
+                    printf(
+                        '<span class="text-muted small text-truncate flex-grow-1" style="flex-basis:0;min-width:0;">%s</span>',
+                        h(__('in #%s %s', $target['event_id'], $target['Event']['info'] ?? ''))
+                    );
+                } else {
+                    printf('<span class="fst-italic text-muted">%s</span>', h($element['element_uuid']));
+                }
+            }
+            else if ($element['element_type'] === 'Value') {
+                printf(
+                    '<a class="text-decoration-none text-break" href="%s">'
+                        . '<span class="text-body font-monospace">%s</span>'
+                    . '</a>',
+                    h($baseurl . '/values/view/' . ValueUrlTool::encode($element['value'])),
+                    h($element['value'])
+                );
             }
         ?>
     </div>

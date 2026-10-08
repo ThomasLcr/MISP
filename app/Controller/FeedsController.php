@@ -40,6 +40,9 @@ class FeedsController extends AppController
         parent::beforeFilter();
         $this->Security->unlockedActions[] = 'previewIndex';
         $this->Security->unlockedActions[] = 'feedCoverage';
+        // The event pivot explorer posts hand-built JSON here with the CSRF
+        // token as the X-CSRF-Token header.
+        $this->_csrfTokenHeaderOnly(['manifestEvents']);
     }
 
     public function loadDefaultFeeds()
@@ -1246,6 +1249,38 @@ class FeedsController extends AppController
         }
         $this->set('attributes', $resultArray);
         $this->render('freetext_index');
+    }
+
+    /**
+     * Card metadata for events of MISP feeds, from their cached manifests.
+     * Body: {"feeds": {"<feed id>": ["<event uuid>", ...]}}.
+     */
+    public function manifestEvents()
+    {
+        $this->request->allowMethod(['post']);
+        $requested = $this->request->data['feeds'] ?? [];
+        if (!is_array($requested)) {
+            throw new BadRequestException(__('Invalid feeds.'));
+        }
+        $budget = 1500;
+        $result = [];
+        foreach ($requested as $feedId => $uuids) {
+            if (!is_numeric($feedId) || !is_array($uuids) || $budget <= 0) {
+                continue;
+            }
+            $uuids = array_slice(array_filter($uuids, fn($uuid) => is_string($uuid) && Validation::uuid($uuid)), 0, $budget);
+            $budget -= count($uuids);
+            $feed = $this->Feed->find('first', [
+                'conditions' => ['id' => $feedId],
+                'recursive' => -1,
+            ]);
+            if (empty($feed) || !$this->__canViewFeed($feed)) {
+                continue;
+            }
+            $cards = $this->Feed->manifestEventCards($this->Auth->user(), $feed, $uuids);
+            $result[(string)$feedId] = $cards ?: new stdClass();
+        }
+        return $this->RestResponse->viewData(['events' => $result ?: new stdClass()], 'json');
     }
 
     private function __canViewFeed($feed)

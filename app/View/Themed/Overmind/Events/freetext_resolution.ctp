@@ -229,10 +229,10 @@ $distFallback = $this->DistributionLevel->fallback();
                                 ?>
                                 <div class="col ft-dist-card" data-dist-value="<?= h($dKey) ?>" style="cursor:pointer;">
                                     <div class="border rounded p-2 d-flex flex-column align-items-center gap-1 h-100 text-center ft-dist-inner"
-                                         style="transition:border-color .15s,background .15s;<?= $sel ? 'border-color:var(--event);background:rgba(24,146,177,.08);' : 'border-color:#d8dde3;' ?>">
+                                         style="transition:border-color .15s,background .15s;<?= $sel ? 'border-color:var(--event);background:rgba(var(--bs-event-rgb, 24, 146, 177), .08);' : 'border-color:var(--misp-line, #d8dde3);' ?>">
                                         <span class="d-inline-flex align-items-center justify-content-center rounded-circle mb-1"
-                                              style="width:1.8rem;height:1.8rem;background:<?= h($m['bg']) ?>;border:1px solid <?= h($m['color']) ?>30;">
-                                            <i class="<?= h($m['icon']) ?>" style="color:<?= h($m['color']) ?>;font-size:.7rem;"></i>
+                                              style="width:1.8rem;height:1.8rem;background:<?= h($this->DistributionLevel->themed($m, 'bg')) ?>;border:1px solid <?= h($this->DistributionLevel->themed($m, 'border', '30')) ?>;">
+                                            <i class="<?= h($m['icon']) ?>" style="color:<?= h($this->DistributionLevel->themed($m, 'fg')) ?>;font-size:.7rem;"></i>
                                         </span>
                                         <span class="fw-bold lh-sm" style="font-size:.68rem;"><?= h($dVal) ?></span>
                                     </div>
@@ -394,12 +394,12 @@ $distFallback = $this->DistributionLevel->fallback();
             var card = distCard.closest('.ft-card');
             var level = distCard.dataset.distValue;
             card.querySelectorAll('.ft-dist-inner').forEach(function (inner) {
-                inner.style.borderColor = '#d8dde3';
+                inner.style.borderColor = 'var(--misp-line, #d8dde3)';
                 inner.style.background = '';
             });
             var inner = distCard.querySelector('.ft-dist-inner');
             inner.style.borderColor = 'var(--event)';
-            inner.style.background = 'rgba(24,146,177,.08)';
+            inner.style.background = 'rgba(var(--bs-event-rgb, 24, 146, 177), .08)';
             card.querySelector('.ft-dist').value = level;
             var sg = card.querySelector('.ft-sg');
             if (sg) { sg.style.display = (parseInt(level, 10) === 4) ? '' : 'none'; }

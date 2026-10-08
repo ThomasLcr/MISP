@@ -40,6 +40,62 @@ $attrDeleted = !empty($attr['deleted']);
                 <?= __('Copy UUID') ?>
             </a>
         </li>
+        <?php
+            $mayGraph = !$attrDeleted && $this->Acl->canAccess('analystGraphs', 'addNodes');
+            $mayCollect = !$attrDeleted && $this->Acl->canAccess('collectionElements', 'addElementToCollection');
+        ?>
+        <?php if ($mayGraph || $mayCollect): ?>
+        <li><hr class="dropdown-divider"></li>
+        <?php endif; ?>
+        <?php if ($mayGraph): ?>
+        <li>
+            <a class="dropdown-item justify-content-start" href="#"
+               data-intel-graph-add="<?= h(json_encode([['type' => 'Attribute', 'uuid' => $attr['uuid'] ?? '', 'label' => $attr['value'] ?? '']])) ?>">
+                <i class="text-info fas fa-circle-nodes me-2"></i>
+                <?= __('Add to graph') ?>
+            </a>
+        </li>
+        <?php endif; ?>
+        <?php if ($mayCollect): ?>
+        <?php $collectUrl = $baseurl . '/collectionElements/addElementToCollection/Attribute/' . h($attr['uuid'] ?? ''); ?>
+        <li>
+            <a class="dropdown-item justify-content-start" href="<?= $collectUrl ?>"
+               onclick="event.preventDefault(); openModal('<?= $collectUrl ?>', 'xl');">
+                <i class="fas fa-folder-plus me-2"></i>
+                <?= __('Add to collection') ?>
+            </a>
+        </li>
+        <?php endif; ?>
+        <?php if (!empty($me['Role']['perm_add']) && !$attrDeleted): ?>
+        <li>
+            <a class="dropdown-item justify-content-start"
+               href="#"
+               onclick="event.preventDefault(); openModal('<?= $baseurl ?>/shadow_attributes/edit/<?= $attrId ?>');">
+                <i class="fas fa-comment-dots me-2"></i>
+                <?= __('Propose change') ?>
+            </a>
+        </li>
+        <?php endif; ?>
+        <?php if ($canEdit && !empty($enrichmentEnabled) && !$attrDeleted): ?>
+        <li>
+            <a class="dropdown-item justify-content-start"
+               href="#"
+               onclick="event.preventDefault(); openModal('<?= $baseurl ?>/events/queryEnrichment/<?= $attrId ?>/0/Enrichment/Attribute');">
+                <i class="fas fa-wand-magic-sparkles text-enrichment me-2"></i>
+                <?= __('Enrich') ?>
+            </a>
+        </li>
+        <?php endif; ?>
+        <?php if ($canEdit && !empty($cortexEnabled) && !$attrDeleted): ?>
+        <li>
+            <a class="dropdown-item justify-content-start"
+               href="#"
+               onclick="event.preventDefault(); openModal('<?= $baseurl ?>/events/queryEnrichment/<?= $attrId ?>/0/Cortex/Attribute');">
+                <i class="fas fa-eye me-2"></i>
+                <?= __('Enrich (Cortex)') ?>
+            </a>
+        </li>
+        <?php endif; ?>
         <?php if ($canEdit): ?>
         <li><hr class="dropdown-divider"></li>
         <li>

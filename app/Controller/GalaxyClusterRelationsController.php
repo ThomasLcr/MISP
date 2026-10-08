@@ -53,11 +53,17 @@ class GalaxyClusterRelationsController extends AppController
         }
 
         $user = $this->Auth->user();
+        $sourceContain = ['Org', 'Orgc'];
+        $targetContain = [];
+        if (!$this->_isRest()) {
+            $sourceContain[] = 'Galaxy';
+            $targetContain[] = 'Galaxy';
+        }
         $this->CRUD->index([
             'conditions' => array(
                 'AND' => array($contextConditions, $searchConditions, $aclConditions)
             ),
-            'contain' => array('SharingGroup', 'SourceCluster' => ['Org', 'Orgc'], 'TargetCluster', 'GalaxyClusterRelationTag' => array('Tag')),
+            'contain' => array('SharingGroup', 'SourceCluster' => $sourceContain, 'TargetCluster' => $targetContain, 'GalaxyClusterRelationTag' => array('Tag')),
             // Post-fetch ACL scrub — the same pruning the legacy index applied.
             'afterFind' => function (array $data) use ($user) {
                 return $this->GalaxyClusterRelation->removeNonAccessibleTargetCluster($user, $data);

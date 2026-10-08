@@ -8,6 +8,7 @@ function toggleDarkMode() {
     const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
     const next = !isDark;
     document.documentElement.setAttribute('data-bs-theme', next ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-misp-mode', next ? 'dark' : 'light');
     localStorage.setItem('darkMode', next);
     updateDarkModeUI(next);
 }
@@ -20,6 +21,9 @@ function updateDarkModeUI(isDark) {
         badge.textContent = isDark ? 'ON' : 'OFF';
         badge.className = 'badge ms-2 dark-mode-badge ' + (isDark ? 'bg-success' : 'bg-secondary');
     });
+    document.querySelectorAll('.toggle-dark-mode[role="switch"]').forEach(function(toggle) {
+        toggle.setAttribute('aria-checked', isDark ? 'true' : 'false');
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -29,23 +33,61 @@ document.addEventListener('DOMContentLoaded', function() {
 /*******************************
  * Toast notifications
  *******************************/
-function showToast(message, variant = 'success') {
-    const container = document.getElementById('mainToastContainer');
-    if (!container) return;
+// Elements/genericElementsBS5/toast.ctp draws the server's flashes the same way.
+const TOAST_KINDS = {
+    success: { icon: 'fa-circle-check', ttl: 5000 },
+    danger: { icon: 'fa-circle-xmark', ttl: 0 },
+    warning: { icon: 'fa-triangle-exclamation', ttl: 8000 },
+};
+const TOAST_DEFAULT = { icon: 'fa-circle-info', ttl: 5000 };
+const TOAST_MAX = 4;
 
-    const id = 'toast-' + Date.now();
-    container.insertAdjacentHTML('beforeend', `
-        <div id="${id}" class="toast align-items-center text-bg-${variant} border-0" role="alert" aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `);
-    const el = document.getElementById(id);
-    const toast = new bootstrap.Toast(el, { delay: 3000 });
-    toast.show();
-    el.addEventListener('hidden.bs.toast', () => el.remove());
+function toastStack() {
+    return document.querySelector('#flashOverlay > .ov-toast-stack')
+        || document.getElementById('mainToastContainer');
+}
+
+function showToast(message, variant = 'success', delay = null) {
+    const stack = toastStack();
+    if (!stack) return;
+    const kind = TOAST_KINDS[variant] || TOAST_DEFAULT;
+    const ttl = delay ?? kind.ttl;
+
+    const el = document.createElement('div');
+    el.className = 'ov-toast';
+    el.setAttribute('role', variant === 'danger' ? 'alert' : 'status');
+    el.style.setProperty('--ov-tone', `var(--bs-${variant})`);
+    el.dataset.ovToastTtl = String(ttl);
+    el.innerHTML = `<span class="ov-toast-icon"><i class="fas ${kind.icon}" aria-hidden="true"></i></span>`
+        + '<div class="ov-toast-body"></div>'
+        + '<button type="button" class="ov-toast-x" aria-label="Dismiss"><i class="fas fa-xmark" aria-hidden="true"></i></button>'
+        + (ttl ? '<span class="ov-toast-timer" aria-hidden="true"></span>' : '');
+    el.querySelector('.ov-toast-body').textContent = message;
+    stack.prepend(el);
+    armToast(el);
+    capToasts(stack);
+}
+
+function armToast(el) {
+    const ttl = parseInt(el.dataset.ovToastTtl, 10) || 0;
+    const timer = el.querySelector('.ov-toast-timer');
+    if (timer && ttl) {
+        timer.style.setProperty('--ov-toast-ttl', ttl + 'ms');
+        timer.addEventListener('animationend', () => dismissToast(el));
+    }
+    el.querySelector('.ov-toast-x').addEventListener('click', () => dismissToast(el));
+}
+
+function dismissToast(el) {
+    if (el.classList.contains('is-leaving')) return;
+    el.classList.add('is-leaving');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    setTimeout(() => el.remove(), 400);
+}
+
+function capToasts(stack) {
+    const live = stack.querySelectorAll(':scope > .ov-toast:not(.is-leaving)');
+    for (let i = TOAST_MAX; i < live.length; i++) dismissToast(live[i]);
 }
 
 /*******************************
@@ -125,6 +167,19 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
     });
+});
+
+// Extension rows arrive in lazily loaded tables, after the pass above.
+document.addEventListener('mouseover', function (event) {
+    var band = event.target.closest && event.target.closest('[data-evt-origin]');
+    if (!band || band.hasAttribute('data-evt-origin-ready') || !window.bootstrap) { return; }
+    band.setAttribute('data-evt-origin-ready', '');
+    bootstrap.Tooltip.getOrCreateInstance(band, {
+        placement: 'top',
+        fallbackPlacements: ['bottom'],
+        boundary: document.body,
+        customClass: 'evt-origin-tip',
+    }).show();
 });
 
 /*******************************
@@ -231,7 +286,7 @@ function returnToEventView(eventId) {
  */
 function setTabCount(tabId, count) {
     const el = document.querySelector('.ov-tab-count[data-tab-count="' + tabId + '"]');
-    if (el) { el.textContent = '(' + count + ')'; }
+    if (el) { el.textContent = Number(count).toLocaleString('en-US'); }
 }
 
 /**
@@ -867,7 +922,7 @@ function toggleTags(badge) {
     const isHidden = hiddenTags[0].classList.contains('d-none');
     hiddenTags.forEach(g => g.classList.toggle('d-none'));
 
-    badge.textContent = isHidden ? '−' : '+' + hiddenTags.length;
+    badge.textContent = isHidden ? '−' : '+' + (badge.dataset.hidden || hiddenTags.length);
 }
 
 /**
@@ -937,10 +992,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function tagLabel(starIcon) {
-        const badge = starIcon.parentElement
-            ? starIcon.parentElement.querySelector('.badge')
-            : null;
-        const name = badge ? badge.textContent.trim() : '';
+        const name = (starIcon.dataset.name || '').trim();
         return name === '' ? 'Tag' : escapeHtml(name);
     }
 
@@ -1494,11 +1546,11 @@ function toggleSecret(fieldId, btn) {
     if (input.type === 'password') {
         input.type = 'text';
         icon.classList.replace('fa-eye', 'fa-eye-slash');
-        btn.classList.add('text-primary');
+        btn.classList.add('text-accent');
     } else {
         input.type = 'password';
         icon.classList.replace('fa-eye-slash', 'fa-eye');
-        btn.classList.remove('text-primary');
+        btn.classList.remove('text-accent');
     }
 }
 
@@ -1740,7 +1792,7 @@ function copyToClipboard(btn, text) {
     const originalHtml = btn.innerHTML;
 
     const proceedCopy = () => {
-        btn.innerHTML = '<i class="fas fa-check text-primary"></i>';
+        btn.innerHTML = '<i class="fas fa-check text-accent"></i>';
 
         const tooltip = bootstrap.Tooltip.getInstance(btn);
         if (tooltip) {
@@ -1827,11 +1879,11 @@ function toggleFormats(button, containerId) {
     if (isExpanding) {
         button.innerHTML = '<i class="fas fa-minus small me-1"></i>';
         button.classList.replace('bg-dark', 'bg-primary');
-        button.classList.replace('text-primary', 'text-dark');
+        button.classList.replace('text-accent', 'text-dark');
     } else {
         button.innerHTML = '<i class="fas fa-plus small me-1"></i>' + extraFormats.length;
         button.classList.replace('bg-primary', 'bg-dark');
-        button.classList.replace('text-dark', 'text-primary');
+        button.classList.replace('text-dark', 'text-accent');
     }
 }
 
@@ -2766,6 +2818,14 @@ function initSharingGroupForm(container) {
     var LAZY_POPOVERS = '.sighting-counts, .role-perm-counter';
 
     function lazyPopover(e) {
+        /*
+         * `mouseenter` fires on the document itself when the pointer
+         * enters the window, and `document` is not an Element — it has
+         * no `closest`. Registered in the capture phase on `document`,
+         * this handler therefore ran against a non-Element target and
+         * threw `e.target.closest is not a function` on every page
+         * load, twice, before a reader had touched anything.
+         */
         var el = e.target && e.target.closest ? e.target.closest(LAZY_POPOVERS) : null;
         if (!el || el._popoverReady) return;
         el._popoverReady = true;
@@ -2897,14 +2957,26 @@ var DIST_MAP = {
     4: { icon: 'misp-icon misp-icon-sharing-group misp-simple', bg: '#6a96ee', color: '#0e146d' },
     5: { icon: 'fas fa-code-fork',                              bg: '#e6b7df', color: '#380f33' },
 };
+var DIST_UNKNOWN = { icon: 'fas fa-question', bg: '#f1f1f1', color: '#333' };
+
+/* A distribution colour as the theme's --misp-dist-* token over this value. */
+function distTone(level, role, value) {
+    var token = DIST_MAP[level] ? 'dist-' + level : 'dist-unknown';
+    return 'var(--misp-' + token + '-' + role + ', ' + value + ')';
+}
+
+function distBadgeStyle(level, cfg, alpha) {
+    return 'background:' + distTone(level, 'bg', cfg.bg) + ';'
+        + 'color:' + distTone(level, 'fg', cfg.color) + ';'
+        + 'border:1px solid ' + distTone(level, 'border', cfg.color + alpha) + ';';
+}
 
 function renderDistOption(data, escape) {
-    var cfg = DIST_MAP[parseInt(data.value, 10)]
-        || { icon: 'fas fa-question', bg: '#f1f1f1', color: '#333' };
+    var level = parseInt(data.value, 10);
+    var cfg = DIST_MAP[level] || DIST_UNKNOWN;
     return '<div class="d-flex align-items-center gap-2 py-1">'
         + '<span class="badge d-inline-flex align-items-center px-2 py-1" style="'
-            + 'background:' + cfg.bg + ';color:' + cfg.color + ';'
-            + 'border:1px solid ' + cfg.color + '33;">'
+            + distBadgeStyle(level, cfg, '33') + '">'
         + '<i class="' + cfg.icon + '"></i>'
         + '</span>'
         + '<span>' + escape(data.text) + '</span>'
@@ -2912,12 +2984,11 @@ function renderDistOption(data, escape) {
 }
 
 function renderDistSelected(data, escape) {
-    var cfg = DIST_MAP[parseInt(data.value, 10)]
-        || { icon: 'fas fa-question', bg: '#f1f1f1', color: '#333' };
+    var level = parseInt(data.value, 10);
+    var cfg = DIST_MAP[level] || DIST_UNKNOWN;
     return '<div class="d-flex align-items-center gap-1">'
         + '<span class="badge d-inline-flex align-items-center px-1" style="'
-            + 'background:' + cfg.bg + ';color:' + cfg.color + ';'
-            + 'border:1px solid ' + cfg.color + '33; font-size:.65rem;">'
+            + distBadgeStyle(level, cfg, '33') + ' font-size:.65rem;">'
         + '<i class="' + cfg.icon + '"></i>'
         + '</span>'
         + '<span>' + escape(data.text) + '</span>'
@@ -2932,45 +3003,21 @@ function renderDistSelected(data, escape) {
  * @param {object}  labels     Map of level → label string (e.g. distLevels from PHP)
  */
 function distBadgeHtml(level, withLabel, labels) {
-    var d   = DIST_MAP[level] || DIST_MAP[0];
+    var key = DIST_MAP[level] ? level : 0;
+    var d   = DIST_MAP[key];
     var lbl = (withLabel && labels && labels[level]) ? labels[level] : '';
     return '<span class="badge d-inline-flex align-items-center gap-1 px-2 py-1"'
-        + ' style="background:' + d.bg + ';color:' + d.color
-        + ';border:1px solid ' + d.color + '30;font-weight:500;">'
+        + ' style="' + distBadgeStyle(key, d, '30') + 'font-weight:500;">'
         + '<i class="' + d.icon + '"></i>'
         + (lbl ? '<span class="ms-1" style="font-size:.7rem;">' + escapeHtml(lbl) + '</span>' : '')
         + '</span>';
 }
 
 /*******************************
- * tagTextColour / tagBadgeStyle
- * The client-side mirror of TextColourHelper::getTextColour() and of the
- * badge styling in Elements/genericElementsBS5/Badges/tag.ctp — a tag drawn
- * by JavaScript has to come out looking exactly like one drawn by PHP.
- * @param {string} hex  Tag colour, '#rrggbb'
- *******************************/
-function tagTextColour(hex) {
-    hex = hex || '#0088cc';
-    var r = parseInt(hex.slice(1, 3), 16);
-    var g = parseInt(hex.slice(3, 5), 16);
-    var b = parseInt(hex.slice(5, 7), 16);
-    return ((2 * r) + b + (3 * g)) / 6 < 127 ? 'white' : 'black';
-}
-
-function tagBadgeStyle(colour) {
-    colour = colour || '#0088cc';
-    return 'background-color:' + colour + '; color:' + tagTextColour(colour) + ';'
-        + ' filter: drop-shadow(-1px 3px 2px rgba(50, 50, 0, 0.5));'
-        + ' background-image: linear-gradient(145deg, rgba(255,255,255,0.25) 0%,'
-        + ' rgba(255,255,255,0.05) 40%, rgba(0,0,0,0.05) 100%);'
-        + ' text-align:left; white-space:normal; word-wrap:break-word;';
-}
-
-/*******************************
  * initTagPickerSection
  * The tag picker used everywhere in the theme: category buttons, a TomSelect
- * search over the current category, and the picked tags drawn below as real
- * MISP badges with a remove cross. Drives both the standalone edit-tags modal
+ * search over the current category, and the picked tags drawn below as tag
+ * chips with a remove cross. Drives both the standalone edit-tags modal
  * (Modals/tag_picker.ctp, one section per locality) and the in-form field
  * (Forms/tag_picker_field.ctp).
  *
@@ -2980,7 +3027,7 @@ function tagBadgeStyle(colour) {
  * @param {Element}  root      Section container
  * @param {object}   catData   {<cat>: [{id,name,colour}], collections: [{id,name,tags:[…]}]}
  * @param {Array}    initTags  Pre-selected [{id,name,colour}]
- * @param {object}   [options] localMarker: draw the local user glyph on badges;
+ * @param {object}   [options] localMarker: flag the chips as local tags;
  *                             onChange: called with the selected id array
  * @return {{ids: function}} the current selection
  *******************************/
@@ -3011,36 +3058,25 @@ function initTagPickerSection(root, catData, initTags, options) {
         keys.sort(function (a, b) {
             return selected[a].name.localeCompare(selected[b].name);
         });
-        keys.forEach(function (id) {
+        selEl.innerHTML = TagChips.collection(keys.map(function (id) {
             var t = selected[id];
-
-            var wrap = document.createElement('div');
-            wrap.className = 'd-inline-flex align-items-center';
-
-            var badge = document.createElement('span');
-            badge.className = 'badge me-1 mb-1 d-inline-flex align-items-center gap-1';
-            badge.style.cssText = tagBadgeStyle(t.colour);
-
-            var txt = document.createElement('span');
-            if (options.localMarker) {
-                txt.innerHTML = '<i class="fas fa-user me-1"></i>';
-            }
-            txt.appendChild(document.createTextNode(t.name));
-
-            var x = document.createElement('i');
-            x.className = 'fas fa-times';
-            x.style.cssText = 'cursor:pointer; opacity:.8;';
-            x.setAttribute('role', 'button');
+            return { id: t.id, name: t.name, colour: t.colour, local: !!options.localMarker };
+        }), { searchUrl: '' });
+        selEl.querySelectorAll('.hg-unit').forEach(function (unit) {
+            var chip = unit.querySelector('[data-tag-id]');
+            if (!chip) { return; }
+            var id = chip.getAttribute('data-tag-id');
+            var x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'hg-act';
             x.setAttribute('aria-label', 'Remove');
+            x.title = 'Remove';
+            x.innerHTML = '&times;';
             x.addEventListener('click', function () {
                 delete selected[id];
                 render();
             });
-
-            badge.appendChild(txt);
-            badge.appendChild(x);
-            wrap.appendChild(badge);
-            selEl.appendChild(wrap);
+            unit.appendChild(x);
         });
         if (typeof options.onChange === 'function') { options.onChange(ids()); }
     }
@@ -3068,12 +3104,9 @@ function initTagPickerSection(root, catData, initTags, options) {
                 + '<span class="badge bg-light text-muted ms-auto">'
                 + (item.count || 0) + '</span></div>';
         }
-        var col = item.colour || '#0088cc';
-        return '<div class="d-flex align-items-center gap-2 py-1">'
-            + '<span style="display:inline-block;width:10px;height:10px;'
-            + 'border-radius:2px;flex-shrink:0;background:' + escape(col) + ';"></span>'
-            + '<span class="text-truncate">'
-            + escape(item.name) + '</span></div>';
+        return '<div class="py-1">'
+            + TagChips.chip({ name: item.name, colour: item.colour }, { searchUrl: '' })
+            + '</div>';
     }
 
     var ts = new TomSelect(pickerEl, {
@@ -3127,28 +3160,11 @@ function initTagPickerSection(root, catData, initTags, options) {
 }
 
 /*******************************
- * galaxyBadgeStyle
- * The client-side mirror of GalaxyColour::palette()/badgeStyle() — a cluster
- * badge drawn by JavaScript has to come out looking exactly like one drawn by
- * PHP, so keep the numbers in sync with the lib.
- * @param {number} hue  GalaxyColour::hue() of the cluster's galaxy
- *******************************/
-function galaxyBadgeStyle(hue) {
-    hue = (hue == null) ? 270 : hue;
-    return 'background-color:hsla(' + hue + ',65%,55%,var(--galaxy-alpha,0.12));'
-        + 'color:hsl(' + hue + ',65%,28%);'
-        + 'border:1px solid hsl(' + hue + ',55%,65%);'
-        + 'background-image:linear-gradient(145deg,rgba(255,255,255,0.15) 0%,'
-        + 'rgba(255,255,255,0.04) 40%,rgba(0,0,0,0.04) 100%);'
-        + 'white-space:normal;word-wrap:break-word;text-align:left;max-width:260px;';
-}
-
-/*******************************
  * initGalaxyPickerSection
  * The galaxy cluster picker used everywhere in the theme: galaxy category
  * buttons, a TomSelect searching the cluster endpoint remotely (an empty query
  * lists the scoped galaxy's clusters, "All Galaxies" needs 2 characters), and
- * the picked clusters drawn below as galaxy badges with a remove cross. Drives
+ * the picked clusters drawn below as cluster chips with a remove cross. Drives
  * both the standalone edit-clusters modal (Modals/galaxy_picker.ctp, one
  * section per locality) and the in-form field (Forms/galaxy_picker_field.ctp).
  *
@@ -3159,7 +3175,7 @@ function galaxyBadgeStyle(hue) {
  * @param {Element} root          Section container
  * @param {Array}   initClusters  Pre-selected [{id,name,galaxy,hue}]
  * @param {object}  options       searchUrl: cluster search endpoint (required);
- *                                localMarker: draw the local user glyph on badges;
+ *                                localMarker: flag the chips as local clusters;
  *                                onChange: called with the selected id array
  * @return {{ids: function}} the current selection
  *******************************/
@@ -3180,58 +3196,44 @@ function initGalaxyPickerSection(root, initClusters, options) {
     function addCluster(c) {
         if (!c || c.id == null) { return; }
         selected[String(c.id)] = {
-            id: c.id, name: c.name, galaxy: c.galaxy || '',
-            hue: (c.hue == null ? 270 : c.hue)
+            id: c.id, name: c.name, galaxy: c.galaxy || '', hue: c.hue
         };
     }
 
     function render() {
         var keys = Object.keys(selected);
         emptyEl.classList.toggle('d-none', keys.length > 0);
-        selEl.innerHTML = '';
         keys.sort(function (a, b) {
             return selected[a].name.localeCompare(selected[b].name);
         });
-        keys.forEach(function (id) {
+        selEl.innerHTML = TagChips.clusters(keys.map(function (id) {
             var c = selected[id];
-
-            var badge = document.createElement('span');
-            badge.className = 'badge p-2 d-inline-flex align-items-center gap-2';
-            badge.style.cssText = galaxyBadgeStyle(c.hue);
-            if (c.galaxy) { badge.title = c.galaxy; }
-
-            var txt = document.createElement('span');
-            txt.style.cssText = 'overflow:hidden;text-overflow:ellipsis;'
-                + 'white-space:nowrap;min-width:0;';
-            if (options.localMarker) {
-                txt.innerHTML = '<i class="fas fa-user me-1"></i>';
-            }
-            txt.appendChild(document.createTextNode(c.name));
-
-            var x = document.createElement('i');
-            x.className = 'fas fa-times';
-            x.style.cssText = 'cursor:pointer; opacity:.8; flex-shrink:0;';
-            x.setAttribute('role', 'button');
+            return { id: c.id, value: c.name, galaxy: c.galaxy, hue: c.hue, local: !!options.localMarker };
+        }), { href: noLink });
+        selEl.querySelectorAll('.hg-unit[data-cluster-id]').forEach(function (unit) {
+            var id = unit.getAttribute('data-cluster-id');
+            var x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'hg-act';
             x.setAttribute('aria-label', 'Remove');
+            x.title = 'Remove';
+            x.innerHTML = '&times;';
             x.addEventListener('click', function () {
                 delete selected[id];
                 render();
             });
-
-            badge.appendChild(txt);
-            badge.appendChild(x);
-            selEl.appendChild(badge);
+            unit.appendChild(x);
         });
         if (typeof options.onChange === 'function') { options.onChange(ids()); }
     }
 
-    function renderOpt(item, escape) {
-        return '<div class="d-flex flex-column py-1">'
-            + '<span>' + escape(item.name) + '</span>'
-            + (item.galaxy
-                ? '<span class="text-muted" style="font-size:.72rem;">'
-                    + escape(item.galaxy) + '</span>'
-                : '')
+    function noLink() {
+        return null;
+    }
+
+    function renderOpt(item) {
+        return '<div class="py-1">'
+            + TagChips.cluster({ value: item.name, galaxy: item.galaxy, hue: item.hue }, { href: noLink })
             + '</div>';
     }
 
@@ -3544,7 +3546,8 @@ function choiceBadge(entry, small) {
     badge.style.color = entry.tone || 'inherit';
     /* `33` is 20% alpha on the tone — the border every distribution badge in
        the theme wears. */
-    badge.style.border = '1px solid ' + (entry.tone || 'transparent') + '33';
+    badge.style.border = '1px solid '
+        + (entry.toneBorder || (entry.tone || 'transparent') + '33');
     if (small) { badge.style.fontSize = '.65rem'; }
 
     var icon = document.createElement('i');
@@ -3604,7 +3607,8 @@ function initChoiceSelects(container) {
             glyphs[node.dataset.choiceIcon] = {
                 icon: node.dataset.icon,
                 tone: node.dataset.tone,
-                toneBg: node.dataset.toneBg
+                toneBg: node.dataset.toneBg,
+                toneBorder: node.dataset.toneBorder
             };
         });
 
@@ -4964,29 +4968,34 @@ function checkNoticeList(type) {
 
             var wrap = document.createElement('div');
             wrap.className = 'd-flex align-items-start gap-2 rounded-2 p-2 mt-1';
-            wrap.style.cssText = 'background:rgba(13,110,253,.06);'
-                + 'border:1px solid rgba(13,110,253,.25);font-size:.8rem;';
+            var blue = 'var(--misp-tone-blue-solid, #0d6efd)';
+            var blueFg = 'var(--misp-tone-blue-fg, var(--primary))';
+            var muted = 'var(--misp-ink-muted, #666)';
+            wrap.style.cssText =
+                'background:color-mix(in srgb, ' + blue + ' 6%, transparent);'
+                + 'border:1px solid color-mix(in srgb, ' + blue
+                + ' 25%, transparent);font-size:.8rem;';
 
             /* innerHTML for static structure; textContent set below to avoid XSS */
             wrap.innerHTML =
                 '<i class="fas fa-circle-info flex-shrink-0"'
-                + ' style="color:var(--primary);margin-top:.15rem;"></i>'
+                + ' style="color:' + blueFg + ';margin-top:.15rem;"></i>'
                 + '<div class="flex-fill" style="min-width:0;overflow:hidden;">'
                     + '<div class="d-flex align-items-center gap-1"'
                     + ' style="min-width:0;overflow:hidden;">'
                         + '<a class="fw-semibold text-decoration-none flex-shrink-0"'
-                        + ' style="color:var(--primary);"></a>'
+                        + ' style="color:' + blueFg + ';"></a>'
                         + '<span class="notice-preview" style="flex:1;min-width:0;'
                         + 'overflow:hidden;white-space:nowrap;'
-                        + 'text-overflow:ellipsis;color:#666;"></span>'
+                        + 'text-overflow:ellipsis;color:' + muted + ';"></span>'
                         + '<button type="button" style="background:none;border:none;'
-                        + 'padding:0;color:var(--primary);cursor:pointer;'
+                        + 'padding:0;color:' + blueFg + ';cursor:pointer;'
                         + 'flex-shrink:0;">'
                         + '<i class="fas fa-chevron-down"'
                         + ' style="font-size:.7rem;"></i></button>'
                     + '</div>'
-                    + '<div class="notice-full"'
-                    + ' style="display:none;color:#666;margin-top:.2rem;"></div>'
+                    + '<div class="notice-full" style="display:none;color:'
+                    + muted + ';margin-top:.2rem;"></div>'
                 + '</div>';
 
             var link    = wrap.querySelector('a');
@@ -5110,21 +5119,27 @@ function initAttributeForm(currentDist, isEdit) {
     }
 
     /* Checkbox-card colours for Batch / IDS / Correlation */
+    var OFF_LINE = 'var(--misp-check-off-line, #dee2e6)';
+    var OFF_ICON = 'var(--misp-check-off-icon, #adb5bd)';
+    var ON_BLUE = 'var(--misp-tone-blue-solid, #0d6efd)';
+    var ON_YELLOW = 'var(--misp-tone-yellow-solid, #ffc107)';
+    var ON_GREEN = 'var(--misp-tone-green-solid, #198754)';
     var CARD_CFG = {
         AttributeBatchImport: {
             card: 'card-batch', icon: 'icon-batch',
-            on:  { border: '#0d6efd', color: '#0d6efd', iconClass: null },
-            off: { border: '#dee2e6', color: '#adb5bd', iconClass: null }
+            on:  { border: ON_BLUE, color: ON_BLUE, iconClass: null },
+            off: { border: OFF_LINE, color: OFF_ICON, iconClass: null }
         },
         AttributeToIds: {
             card: 'card-ids', icon: 'icon-ids',
-            on:  { border: '#ffc107', color: '#ffc107', iconClass: null },
-            off: { border: '#dee2e6', color: '#adb5bd', iconClass: null }
+            on:  { border: ON_YELLOW, color: ON_YELLOW, iconClass: null },
+            off: { border: OFF_LINE, color: OFF_ICON, iconClass: null }
         },
         AttributeDisableCorrelation: {
             card: 'card-correl', icon: 'icon-correl',
-            on:  { border: '#dee2e6', color: '#adb5bd', iconClass: 'fas fa-link-slash' },
-            off: { border: '#198754', color: '#198754', iconClass: 'fas fa-link' }
+            on:  { border: OFF_LINE, color: OFF_ICON,
+                   iconClass: 'fas fa-link-slash' },
+            off: { border: ON_GREEN, color: ON_GREEN, iconClass: 'fas fa-link' }
         }
     };
 
@@ -5254,7 +5269,7 @@ function initAttributeForm(currentDist, isEdit) {
 
         function showError(message) {
             lastValid = false;
-            valueEl.style.borderColor = '#dc3545';
+            valueEl.style.borderColor = 'var(--misp-tone-red-solid, #dc3545)';
             var msg = document.getElementById(errorId);
             if (!msg) {
                 msg = document.createElement('div');
@@ -5273,7 +5288,7 @@ function initAttributeForm(currentDist, isEdit) {
 
         function clearError() {
             lastValid = true;
-            valueEl.style.borderColor = '#d8dde3';
+            valueEl.style.borderColor = 'var(--misp-field-line, #d8dde3)';
             var msg = document.getElementById(errorId);
             if (msg) { msg.remove(); }
         }
@@ -5579,20 +5594,14 @@ function updateActiveFilterBadge(container, searchTerm, clearCb, labelActive, la
 
 
 /**
- * Auto-dismiss the flash messages after 5s.
- *
+ * Arm the server's flash toasts: each leaves after its own lifetime, an
+ * error only when closed.
  */
-function initFlashAutoDismiss() {
-    const flash = document.getElementById('flashContainer');
-    if (!flash || flash.children.length === 0) return;
-
-    setTimeout(function () {
-        flash.classList.add('fade-out');
-        setTimeout(function () {
-            flash.innerHTML = '';
-            flash.classList.remove('fade-out');
-        }, 600);
-    }, 5000);
+function initFlashToasts() {
+    const stack = toastStack();
+    if (!stack) return;
+    stack.querySelectorAll(':scope > .ov-toast').forEach(armToast);
+    capToasts(stack);
 }
 
 /* ==========================================================================
@@ -5991,6 +6000,24 @@ function initTopbarFilterSelects(scope) {
 }
 
 /**
+ * The two containers view_layout emits for a lazily-loaded panel: the
+ * full-width `.ajax-tab-content` in the left column, and the `.ajax-card`
+ * in the right rail. Both carry data-url and both are loaded the same way.
+ */
+const AJAX_CONTAINER_SELECTOR = '.ajax-tab-content, .ajax-card';
+
+/**
+ * Which fetch a container is currently waiting for.
+ *
+ * A container that is reloaded while a request is still out — three ticks
+ * on a facet bar, a pager clicked twice — would otherwise render whichever
+ * response happened to come back last rather than the one for the URL it
+ * now holds. Each request takes a token; only the newest one is allowed to
+ * write into the container.
+ */
+let ajaxLoadToken = 0;
+
+/**
  * Fetch an ajax container's URL into it, once, and run the scripts it brings.
  *
  * @param {Element} container carries data-url, gains data-loaded
@@ -6005,21 +6032,47 @@ function loadAjaxContainer(container) {
     const url = container.dataset.url;
     if (!url) return;
 
+    /*
+     * No `is-loading` here. On a container's first load what it holds is
+     * a placeholder that already says it is waiting — dimming that would
+     * only make the panel names harder to read, which is the one thing
+     * the placeholder is there for. The class is for a *re*-load, where
+     * what is on screen is the previous answer, and `reloadAjaxTabIndex`
+     * sets it; this function only clears it.
+     */
+    const token = String(++ajaxLoadToken);
+    container.dataset.loadToken = token;
+
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             return res.text();
         })
         .then(html => {
+            if (container.dataset.loadToken !== token) return;
+            container.classList.remove('is-loading');
             container.innerHTML = html;
             container.dataset.loaded = '1';
 
             // innerHTML does not execute <script>, so re-create each one.
             container.querySelectorAll('script').forEach(function (oldScript) {
                 const newScript = document.createElement('script');
-                if (oldScript.src) {
-                    newScript.src = oldScript.src;
-                } else {
+                /*
+                 * **Every attribute, not just `src`.** `type` above all:
+                 * a panel's `<script type="application/json">` data
+                 * island — the Sightings chart, the Timeline and the
+                 * History diff all ship one — was re-created without it,
+                 * so the browser took a block of JSON for JavaScript and
+                 * threw `Unexpected token ':'` out of the appendChild
+                 * below. Carrying the attributes across also keeps
+                 * `defer`, `async` and any CSP `nonce` intact, and lets
+                 * the browser skip a non-JavaScript type by itself
+                 * rather than this loop having to know the list.
+                 */
+                for (const attr of oldScript.attributes) {
+                    newScript.setAttribute(attr.name, attr.value);
+                }
+                if (!oldScript.src) {
                     newScript.textContent = oldScript.textContent;
                 }
                 document.head.appendChild(newScript);
@@ -6033,8 +6086,22 @@ function loadAjaxContainer(container) {
             if (typeof initDateFields === 'function') {
                 initDateFields(container);
             }
+
+            /*
+             * Page-level scripts need to know when a lazily-loaded panel
+             * has arrived, so state the page holds — an active filter,
+             * attributes stamped on controls — can be re-applied to
+             * markup that was not there at load. The Value Profile's
+             * panels are what listen; other callers are unaffected.
+             */
+            container.dispatchEvent(new CustomEvent('misp:container-loaded', {
+                bubbles: true,
+                detail: { url: url }
+            }));
         })
         .catch(() => {
+            if (container.dataset.loadToken !== token) return;
+            container.classList.remove('is-loading');
             container.innerHTML =
                 '<div class="text-danger">Error loading content</div>';
         });
@@ -6146,6 +6213,20 @@ function bindAjaxTabIndexNav(container) {
  * of navigating the whole page. Called by bindAjaxTabIndexNav() above and by
  * IndexTable/filter_bar.
  *
+ * **The old markup stays until the new markup arrives.** This used to
+ * replace the container's contents with a centred spinner and then wait,
+ * which collapsed a panel of any height to about 60px for the length of
+ * the request and pushed everything below it up the page — then back down
+ * when the rows landed. Ticking a facet made the page jump twice, and on
+ * a debounced narrowing the reader was looking at a spinner where the
+ * table they were filtering had been.
+ *
+ * So nothing is thrown away here. `is-loading` dims what is there and
+ * makes it inert — it is the previous answer, and a pager clicked inside
+ * it would race the fetch already out — and `loadAjaxContainer` swaps in
+ * the response when it comes. The container never changes height except
+ * once, at the moment it has something new to be.
+ *
  * @param {Element} container
  * @param {string} url
  */
@@ -6153,8 +6234,7 @@ window.reloadAjaxTabIndex = function (container, url) {
     if (!container || !url) return;
     container.dataset.url = url;
     delete container.dataset.loaded;
-    container.innerHTML =
-        '<div class="text-center p-4"><div class="spinner-border"></div></div>';
+    container.classList.add('is-loading');
     loadAjaxContainer(container);
 };
 
@@ -6184,7 +6264,8 @@ document.addEventListener('shown.bs.tab', function (event) {
         updateMultiSelectToolbar();
     }
 
-    tabPane.querySelectorAll('.ajax-tab-content').forEach(loadAjaxContainer);
+    tabPane.querySelectorAll(AJAX_CONTAINER_SELECTOR)
+        .forEach(loadAjaxContainer);
 });
 
 /**
@@ -6242,13 +6323,15 @@ function initSessionWatchdog() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    initFlashAutoDismiss();
+    initFlashToasts();
     initDebugStrip();
     initTopbarFilterSelects();
     initSessionWatchdog();
     // The tab that is already active gets no shown.bs.tab event.
-    document.querySelectorAll('.tab-pane.active .ajax-tab-content')
-        .forEach(loadAjaxContainer);
+    document.querySelectorAll('.tab-pane.active').forEach(function (pane) {
+        pane.querySelectorAll(AJAX_CONTAINER_SELECTOR)
+            .forEach(loadAjaxContainer);
+    });
 });
 
 
@@ -6560,7 +6643,7 @@ function initIndexFilterDraft(root, opts) {
         if (busy && !overlay) {
             overlay = document.createElement('div');
             overlay.className = 'index-results-overlay';
-            overlay.innerHTML = '<div class="spinner-border text-primary" role="status"></div>';
+            overlay.innerHTML = '<div class="misp-loader" role="status"></div>';
             results.appendChild(overlay);
         } else if (!busy && overlay) {
             overlay.remove();
@@ -8599,3 +8682,4 @@ function initObjectAddForm(container, payloadEl) {
 document.addEventListener('DOMContentLoaded', function () {
     initObjectForm(document);
 });
+

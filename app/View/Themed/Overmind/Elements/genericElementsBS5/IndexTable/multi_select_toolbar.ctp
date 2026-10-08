@@ -1,5 +1,22 @@
 <?php
 $filter_bar = $filter_bar ?? [];
+
+/*
+ * `disabled` holds the reason every bulk action on this index is
+ * unavailable — a read-only page that still wants to show what selection
+ * would offer. A <fieldset disabled> takes every button out at once, so
+ * no button here has to know about it. Absent for every existing caller.
+ */
+$disabledReason = $filter_bar['disabled'] ?? null;
+
+/*
+ * `scope_note` names what the selection spans when the count alone is
+ * ambiguous — `3 rows · 3 events · 2 organisations` on an index whose rows
+ * are attributes drawn from several events. Absent for every existing
+ * caller, which keeps the bar exactly as it is today.
+ */
+$scopeNote = $filter_bar['scope_note'] ?? null;
+
 // A mass_* key holds the path of the modal the button opens (selected ids appended).
 $massOpen = function ($key, $size = 'xl') use ($filter_bar, $baseurl) {
     return sprintf(
@@ -11,6 +28,9 @@ $massOpen = function ($key, $size = 'xl') use ($filter_bar, $baseurl) {
 ?>
 <div id="multiSelectToolbar"
      class="mt-2 d-none">
+<?php if ($disabledReason !== null): ?>
+    <fieldset disabled class="border-0 p-0 m-0" title="<?= h($disabledReason) ?>">
+<?php endif; ?>
 
     <div class="p-2 border rounded bg-light d-flex align-items-center gap-2 flex-wrap">
 
@@ -18,6 +38,24 @@ $massOpen = function ($key, $size = 'xl') use ($filter_bar, $baseurl) {
             <?= __('Selected items') ?>:
             <span id="selectedCount">0</span>
         </strong>
+
+<?php if ($scopeNote !== null): ?>
+        <span class="small text-muted" id="multiSelectScopeNote">
+            <?= h($scopeNote) ?>
+        </span>
+<?php endif; ?>
+<?php if ($disabledReason !== null): ?>
+        <?php
+        /*
+         * The reason is on the fieldset as a title too, but a tooltip on
+         * a disabled control is the one explanation hardest to reach, so
+         * an index that switches its bulk actions off says why in text.
+         */
+        ?>
+        <span class="small text-muted">
+            <?= h($disabledReason) ?>
+        </span>
+<?php endif; ?>
 
         <?php if (!empty($filter_bar['export'])): ?>
             <button id="multi-export-button"
@@ -281,4 +319,7 @@ $massOpen = function ($key, $size = 'xl') use ($filter_bar, $baseurl) {
         <?php endif; ?>
 
     </div>
+<?php if ($disabledReason !== null): ?>
+    </fieldset>
+<?php endif; ?>
 </div>

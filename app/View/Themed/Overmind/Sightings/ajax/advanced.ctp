@@ -1,53 +1,75 @@
 <?php
-$idCount = count(array_filter(explode('|', (string)$id), 'strlen'));
-$isEvent = $context === 'event';
-$canAdd = !$isEvent && !empty($isAclSighting);
-$uid = 'sightingAdv' . substr(md5($id . $context), 0, 8);
 
-if ($isEvent) {
-    $title = __('Event #%s', $id);
-} elseif ($idCount > 1) {
-    $title = __('%s attributes', $idCount);
-} else {
-    $title = __('Attribute #%s', $id);
-}
+$safeId      = h($id);
+$safeContext = h($context);
+$safeOrgId   = h($me['org_id']);
 
-$base = $baseurl . '/sightings/';
-$tabs = [
-    'graph' => ['icon' => 'fas fa-chart-area', 'label' => __('Graph'), 'url' => $base . 'viewSightings/' . h($id) . '/' . h($context)],
-    'all' => ['icon' => 'fas fa-list', 'label' => __('All'), 'url' => $base . 'listSightings/' . h($id) . '/' . h($context)],
-    'org' => ['icon' => 'misp-icon misp-icon-organisation misp-simple', 'label' => __('My organisation'), 'url' => $base . 'listSightings/' . h($id) . '/' . h($context) . '/' . h($me['org_id'])],
-];
-if ($canAdd) {
-    $tabs['add'] = ['icon' => 'fas fa-plus', 'label' => __('Add sighting'), 'url' => ''];
-}
+$urlGraph  = $baseurl . '/sightings/viewSightings/'   . $safeId . '/' . $safeContext;
+$urlAll    = $baseurl . '/sightings/listSightings/'   . $safeId . '/' . $safeContext;
+$urlOrg    = $baseurl . '/sightings/listSightings/'   . $safeId . '/' . $safeContext . '/' . $safeOrgId;
+$urlAdd    = $baseurl . '/sightings/add/' . $safeId;
 ?>
-<div id="<?= $uid ?>" style="border-radius: var(--bs-modal-border-radius, var(--bs-border-radius-lg)); overflow: hidden;">
-    <?= $this->element('genericElementsBS5/Forms/modal_header', [
-        'accent' => 'sighting',
-        'eyebrow' => __('Sightings'),
-        'title' => $title,
-        'description' => $isEvent
-            ? __('Sightings recorded on the attributes of this event.')
-            : __('Who saw this, when, and whether it turned out to be a false positive.'),
-        'titleIcon' => 'misp-icon misp-icon-sighting misp-simple',
-        'close' => true,
-    ]) ?>
 
-    <div class="px-4 pt-3">
-        <ul class="nav nav-pills gap-1" role="tablist"
-            style="--bs-nav-pills-link-active-bg: var(--bs-primary); --bs-nav-link-color: var(--bs-primary); --bs-nav-link-hover-color: var(--bs-primary-text-emphasis);">
-            <?php foreach ($tabs as $key => $tab): ?>
-            <li class="nav-item" role="presentation">
-                <button type="button" role="tab"
-                        class="nav-link<?= $key === 'graph' ? ' active' : '' ?>"
-                        data-sighting-tab="<?= $key ?>"
-                        data-url="<?= h($tab['url']) ?>">
-                    <i class="<?= $tab['icon'] ?> me-1"></i><?= $tab['label'] ?>
-                </button>
-            </li>
-            <?php endforeach; ?>
-        </ul>
+<div class="container-fluid py-3">
+
+    <!-- ── Header ── -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="d-flex align-items-center gap-2 fw-semibold mb-0">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-2"
+                  style="width:32px;height:32px;background:#fbceff;">
+                <span class="misp-icon misp-icon-sighting misp-simple" style="color:#890096;font-size:.85rem;"></span>
+            </span>
+            <?= __('Sightings') ?>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="<?= __('Close') ?>"></button>
+    </div>
+
+    <!-- ── Tab nav ── -->
+    <ul class="nav nav-pills gap-1 mb-3" id="sightingAdvTabs" role="tablist">
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-ajax nav-link active" role="tab"
+                    data-tab="graph"
+                    data-url="<?= h($urlGraph) ?>">
+                <i class="fas fa-chart-area me-1"></i><?= __('Graph') ?>
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-ajax nav-link" role="tab"
+                    data-tab="all"
+                    data-url="<?= h($urlAll) ?>">
+                <i class="fas fa-list me-1"></i><?= __('All') ?>
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-ajax nav-link" role="tab"
+                    data-tab="org"
+                    data-url="<?= h($urlOrg) ?>">
+                <span class="misp-icon misp-icon-organisation misp-simple me-1"></span><?= __('My org') ?>
+            </button>
+        </li>
+
+        <?php if ($safeContext === 'attribute'): ?>
+        <li class="nav-item" role="presentation">
+            <button class="nav-ajax nav-link" role="tab" data-tab="add">
+                <i class="fas fa-plus me-1"></i><?= __('Add sighting') ?>
+            </button>
+        </li>
+        <?php endif; ?>
+
+    </ul>
+
+    <!-- ── Content area ── -->
+    <div id="sightingAdvContent"
+         style="max-height:80vh;overflow-y:auto;overflow-x:auto;">
+        <div class="d-flex justify-content-center align-items-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden"><?= __('Loading…') ?></span>
+            </div>
+        </div>
     </div>
 
     <div class="px-4 py-3">
@@ -151,7 +173,12 @@ if ($canAdd) {
     }
 
     function loadRemote(url) {
-        spinner();
+        contentEl.innerHTML =
+            '<div class="d-flex justify-content-center align-items-center py-5">'
+            + '<div class="spinner-border text-primary" role="status">'
+            + '<span class="visually-hidden"><?= __('Loading…') ?></span>'
+            + '</div></div>';
+
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) {
                 if (!r.ok) throw new Error(r.status);

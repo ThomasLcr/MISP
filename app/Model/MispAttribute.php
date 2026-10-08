@@ -2009,13 +2009,51 @@ class MispAttribute extends AppModel
         if (isset($options['contain'])) {
             $params['contain'] = $options['contain'];
         }
-        return $this->find('all', array(
+        $query = array(
             'conditions' => $params['conditions'],
             'recursive' => -1,
             'fields' => $params['fields'],
             'contain' => $params['contain'],
             'order' => false,
-        ));
+        );
+        // Optional and guarded: a caller that passes none of these
+        // reaches the same unordered, unbounded query it always did.
+        foreach (array('order', 'limit', 'page') as $key) {
+            if (isset($options[$key])) {
+                $query[$key] = $options[$key];
+            }
+        }
+        return $this->find('all', $query);
+    }
+
+    /**
+     * Live attributes the user may read, shaped as
+     * MispObject::fetchGraphObjects() shapes an object's.
+     *
+     * @param array $user
+     * @param array $conditions
+     * @return array
+     */
+    public function fetchGraphAttributes(array $user, array $conditions)
+    {
+        $conditions['Attribute.deleted'] = 0;
+        $rows = $this->fetchAttributesSimple($user, [
+            'conditions' => $conditions,
+            'contain' => [
+                'Event' => ['fields' => ['Event.id', 'Event.org_id']],
+                'Object' => ['fields' => ['Object.id']],
+                'AttributeTag' => ['Tag'],
+            ],
+        ]);
+        $objectModel = ClassRegistry::init('MispObject');
+        $out = [];
+        foreach ($rows as $row) {
+            $attribute = $row['Attribute'];
+            $attribute['AttributeTag'] = $row['AttributeTag'] ?? [];
+            $shaped = $objectModel->graphAttributes($user, [$attribute], $row['Event']['org_id'] ?? null);
+            $out[] = $shaped[0];
+        }
+        return $out;
     }
 
     /**

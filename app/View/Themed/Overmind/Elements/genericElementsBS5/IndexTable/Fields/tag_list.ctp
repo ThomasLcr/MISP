@@ -87,7 +87,7 @@ if ($totalTags === 0) {
 
 ?>
 
-<div class="tag-container d-inline-flex flex-wrap align-items-center">
+<div class="tag-container d-inline-flex flex-wrap align-items-center gap-1">
 
 <?php if (!empty($tagCollection)): ?>
     <a
@@ -100,34 +100,21 @@ if ($totalTags === 0) {
 <?php endif; ?>
 
 <?php
-$visibleIndex = 0;
-
-foreach ($data as $tagWrapper) {
-    if (empty($tagWrapper['Tag'])) {
-        continue;
-    }
-    // Galaxy-tags live in AttributeTag too
-    if (!empty($tagWrapper['Tag']['is_galaxy'])) {
-        continue;
-    }
-
-    $hiddenClass = ($visibleIndex >= $maxVisible) ? 'd-none extra-tag' : '';
-
-    echo $this->element('genericElementsBS5/Badges/tag', [
-        'tag' => $tagWrapper['Tag'],
-        'local' => $tagWrapper['local'] ?? false,
-        'hiddenClass' => $hiddenClass,
-        'showFavourite' => false
-    ]);
-
-    $visibleIndex++;
-}
+$realTags = array_values($realTags);
+echo $this->TagChip->collection(array_slice($realTags, 0, $maxVisible), [
+    'searchUrl' => '',
+]);
+echo $this->TagChip->collection(array_slice($realTags, $maxVisible), [
+    'searchUrl' => '',
+    'class' => 'd-none extra-tag',
+]);
 ?>
 
 <?php if ($hiddenCount > 0): ?>
     <span
         class="badge bg-secondary text-white me-1 mb-1 tag-expand"
         style="cursor:pointer;"
+        data-hidden="<?= $hiddenCount ?>"
         onclick="toggleTags(this)"
     >
         +<?= $hiddenCount ?>
