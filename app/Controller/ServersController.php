@@ -2624,6 +2624,8 @@ class ServersController extends AppController
             'request_encoding' => $this->CompressedRequestHandler->supportedEncodings(),
             'filter_sightings' => true, // check if Sightings::filterSightingUuidsForPush method is supported
             'collection_sync' => true, // check if Collection sync (indexMinimal/fetch/capture) is supported
+            'analyst_graph' => true, // analyst data sync carries the Graph type
+            'analyst_data_batch_push' => true, // analyst_data/pushAnalystDataBatch takes a list of records
         ];
         return $this->RestResponse->viewData($response, 'json');
     }

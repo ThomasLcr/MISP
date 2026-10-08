@@ -1,11 +1,13 @@
 
 <?php
     echo $this->Session->flash('auth');
+    // Overmind keeps a light card in dark mode; other themes paint their own.
+    $lightCard = ($bootstrapTheme['name'] ?? 'overmind') === 'overmind';
 ?>
 
 <div class="d-flex align-items-center justify-content-center overflow-y-auto" style="position: fixed; inset: 0;">
     <div class="col-md-auto" style="max-width: 500px; width: 100%;">
-        <div class="card shadow-lg p-4" style="background-color: #ffffff">
+        <div class="card shadow-lg p-4"<?= $lightCard ? ' data-bs-theme="light"' : '' ?> style="background-color: var(--misp-login-card-bg, #ffffff)">
             <!-- Welcome message -->
             <div class="mb-4 text-center">
                 <h2 class="fw-bold">
@@ -43,7 +45,7 @@
                     } else {
                         echo $this->Html->image('misp-logo-main-cmyk-hori-.png', [
                             'alt' => __('MISP Logo'),
-                            'class' => 'main-logo'
+                            'class' => 'main-logo misp-artwork-logo'
                         ]);
                     }
                     ?>
@@ -80,7 +82,7 @@
                     'novalidate' => true
                 ]);
                 ?>
-                <h4 class="mb-3 fw-semibold" style="color: #28191B;">Sign in</h4>
+                <h4 class="mb-3 fw-semibold" style="color: var(--misp-login-heading, #28191B);">Sign in</h4>
 
                 <!-- Email -->
                 <div class="form-floating mb-3">
@@ -129,7 +131,7 @@
                         <label for="UserOtp"><?= __('OTP') ?></label>
                     </div>
                     <div class="alert alert-secondary d-flex align-items-center small mb-3" role="alert">
-                        <i class="fa-solid fa-info-circle me-2 text-primary"></i>
+                        <i class="fa-solid fa-info-circle me-2 text-accent"></i>
                         <div>
                             <?= __('Visit') ?>
                             <a href="<?= h(Configure::read('LinOTPAuth.baseUrl')) ?>/selfservice"

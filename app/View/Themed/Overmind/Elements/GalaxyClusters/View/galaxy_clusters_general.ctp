@@ -232,12 +232,11 @@ if (!empty($data['source'])) {
             <hr class="my-3">
             <?php if (!empty($parent)): ?>
                 <div class="mb-2">
-                    <span class="text-muted small text-uppercase fw-bold me-2"><?= __('Forked from') ?></span>
-                    <a class="text-galaxy fw-semibold text-decoration-none"
-                       href="<?= $baseurl ?>/galaxy_clusters/view/<?= h($parent['id']) ?>">
-                        <i class="fas fa-code-branch me-1"></i><?= h($parent['value']) ?>
-                        <span class="text-muted">(v<?= h($data['extends_version'] ?? '') ?>)</span>
-                    </a>
+                    <span class="text-muted small text-uppercase fw-bold me-2">
+                        <i class="fas fa-code-branch me-1"></i><?= __('Forked from') ?>
+                    </span>
+                    <?= $this->TagChip->cluster($data['extended_from']) ?>
+                    <span class="text-muted">(v<?= h($data['extends_version'] ?? '') ?>)</span>
                     <?php if (!empty($newVersionAvailable)): ?>
                         <div class="alert alert-warning py-2 mt-2 mb-0 small">
                             <i class="fas fa-triangle-exclamation me-1"></i>
@@ -254,17 +253,10 @@ if (!empty($data['source'])) {
 
             <?php if (!empty($children)): ?>
                 <div>
-                    <span class="text-muted small text-uppercase fw-bold me-2"><?= __('Forked by') ?></span>
-                    <span class="d-inline-flex flex-wrap gap-2">
-                        <?php foreach ($children as $child):
-                            $cc = $child['GalaxyCluster']; ?>
-                            <a class="badge fw-semibold text-decoration-none"
-                               style="background:transparent;color:var(--bs-galaxy);border:1px dashed var(--bs-galaxy);"
-                               href="<?= $baseurl ?>/galaxy_clusters/view/<?= h($cc['id']) ?>">
-                                <i class="fas fa-code-branch me-1"></i><?= h($cc['value']) ?>
-                            </a>
-                        <?php endforeach; ?>
+                    <span class="text-muted small text-uppercase fw-bold me-2">
+                        <i class="fas fa-code-branch me-1"></i><?= __('Forked by') ?>
                     </span>
+                    <?= $this->TagChip->clusters($children) ?>
                 </div>
             <?php endif; ?>
         <?php endif; ?>

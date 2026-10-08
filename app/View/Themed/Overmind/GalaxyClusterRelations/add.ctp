@@ -52,7 +52,7 @@ echo $this->element('genericElementsBS5/Forms/modal_header', [
                     'id' => 'GalaxyClusterRelationSourceUuid',
                     'class' => 'form-control font-monospace'
                         . ($isEdit ? ' bg-body-secondary' : ''),
-                    'style' => 'border-color:#d8dde3;',
+                    'style' => 'border-color:var(--misp-field-line, #d8dde3);',
                     'placeholder' => __('UUID of the cluster the relationship starts from'),
                     'autocomplete' => 'off',
                 ];
@@ -90,7 +90,7 @@ echo $this->element('genericElementsBS5/Forms/modal_header', [
                 <?= $this->Form->text('referenced_galaxy_cluster_uuid', [
                     'id' => 'GalaxyClusterRelationTargetUuid',
                     'class' => 'form-control font-monospace',
-                    'style' => 'border-color:#d8dde3;',
+                    'style' => 'border-color:var(--misp-field-line, #d8dde3);',
                     'placeholder' => __('UUID of the cluster the relationship points to'),
                     'autocomplete' => 'off',
                     'data-om-required' => 'true',
@@ -151,7 +151,7 @@ echo $this->element('genericElementsBS5/Forms/modal_header', [
             <?= $this->Form->textarea('tags', [
                 'id' => 'GalaxyClusterRelationTags',
                 'class' => 'form-control font-monospace',
-                'style' => 'border-color:#d8dde3;',
+                'style' => 'border-color:var(--misp-field-line, #d8dde3);',
                 'rows' => 3,
                 'placeholder' => 'estimative-language:likelihood-probability="very-likely", false-positive:risk="low"',
             ]) ?>

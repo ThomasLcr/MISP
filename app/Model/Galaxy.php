@@ -1,5 +1,6 @@
 <?php
 App::uses('AppModel', 'Model');
+App::uses('GalaxyMatrixLayout', 'Tools');
 
 /**
  * @property GalaxyCluster $GalaxyCluster
@@ -140,6 +141,20 @@ class Galaxy extends AppModel
         }
         if (!isset($this->data['Galaxy']['description'])) {
             $this->data['Galaxy']['description'] = '';
+        }
+        /*
+         * Absent means nobody has classified this galaxy, which is why
+         * migration 164 made both columns nullable. A form clearing the
+         * select posts an empty string, so it is restored to the null
+         * ingestion writes rather than becoming a second spelling of
+         * unclassified that an `IS NULL` would miss.
+         */
+        foreach (['category', 'kind'] as $classification) {
+            if (isset($this->data['Galaxy'][$classification])
+                && $this->data['Galaxy'][$classification] === ''
+            ) {
+                $this->data['Galaxy'][$classification] = null;
+            }
         }
         return true;
     }
@@ -855,7 +870,7 @@ class Galaxy extends AppModel
                 $date = new DateTime();
                 $galaxy['Galaxy']['version'] = $date->getTimestamp();
                 if (empty($fieldList)) {
-                    $fieldList = ['name', 'namespace', 'description', 'version', 'distribution', 'icon', 'enabled', 'kill_chain_order'];
+                    $fieldList = ['name', 'namespace', 'description', 'version', 'distribution', 'icon', 'enabled', 'kill_chain_order', 'category', 'kind'];
                 }
                 $saveSuccess = $this->save($galaxy, ['fieldList' => $fieldList]);
                 if (!$saveSuccess) {
@@ -1174,18 +1189,24 @@ class Galaxy extends AppModel
         $this->loadLog()->createLogEntry($user, 'galaxy', ucfirst($targetType), $targetId, $logTitle);
     }
 
-    public function getMitreAttackGalaxyId($type="mitre-attack-pattern", $namespace="mitre-attack")
+    /**
+     * @param string $type
+     * @param string|array $namespace misp-galaxy renamed ATT&CK's namespace
+     *        from mitre-attack to mitre, so both are accepted by default
+     * @return int 0 when absent
+     */
+    public function getMitreAttackGalaxyId($type="mitre-attack-pattern", $namespace=['mitre-attack', 'mitre'])
     {
         $galaxy = $this->find('first', array(
             'recursive' => -1,
-            'fields' => array('MAX(Galaxy.version) as latest_version', 'id'),
+            'fields' => array('Galaxy.id'),
             'conditions' => array(
                 'Galaxy.type' => $type,
                 'Galaxy.namespace' => $namespace
             ),
-            'group' => array('name', 'id')
+            'order' => array('Galaxy.version' => 'DESC', 'Galaxy.id' => 'DESC'),
         ));
-        return empty($galaxy) ? 0 : $galaxy['Galaxy']['id'];
+        return empty($galaxy) ? 0 : (int)$galaxy['Galaxy']['id'];
     }
 
     public function getAllowedMatrixGalaxies(array $user)
@@ -1255,7 +1276,6 @@ class Galaxy extends AppModel
 
     public function getMatrix($user, $galaxy_id, $scores=[])
     {
-        $sectionInEnterprise = ['attack-PRE', 'attack-Windows', 'attack-Linux', 'attack-macOS', 'attack-Office-365', 'attack-Azure-AD', 'attack-Google-Workspace', 'attack-SaaS', 'attack-IaaS', 'attack-Network', 'attack-Containers'];
         $conditions = ['Galaxy.id' => $galaxy_id, 'AND' => $this->buildConditions($user)];
         $contains = [
             'GalaxyCluster' => ['GalaxyElement'],
@@ -1285,17 +1305,13 @@ class Galaxy extends AppModel
 
         // FIXME: temporary fix: create a fake tab to have an unfiltered view of mitre-attach-pattern galaxy
         $mitreAttackGalaxyId = $this->getMitreAttackGalaxyId();
+        $sectionInEnterprise = [];
         if ($galaxy_id == $mitreAttackGalaxyId) {
-            $tabs['attack-enterprise'] = [];
-            $killChainEnterpriseColumn = [];
-            foreach ($matrixData['killChain'] as $tabname => $columns) {
-                if (in_array($tabname, $sectionInEnterprise)) {
-                    foreach ($columns as $column) {
-                        $killChainEnterpriseColumn[$column] = 1;
-                    }
-                }
-            }
-            $matrixData['killChain'] = ['attack-enterprise' => array_keys($killChainEnterpriseColumn)] + $matrixData['killChain'];
+            $sectionInEnterprise = GalaxyMatrixLayout::enterpriseTabs($matrixData['killChain']);
+            $enterpriseColumns = GalaxyMatrixLayout::mergeColumnOrders(array_map(function ($tab) use ($matrixData) {
+                return $matrixData['killChain'][$tab];
+            }, $sectionInEnterprise));
+            $matrixData['killChain'] = ['attack-enterprise' => $enterpriseColumns] + $matrixData['killChain'];
         }
         // end FIXME
 

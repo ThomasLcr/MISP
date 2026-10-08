@@ -141,9 +141,14 @@ $cardStyle = '';
 if (!empty($data['row_style_callable']) && is_callable($data['row_style_callable'])) {
     $cardStyle = call_user_func($data['row_style_callable'], $row);
 }
+$cardMarker = '';
+if (!empty($data['row_marker_callable']) && is_callable($data['row_marker_callable'])) {
+    $cardMarker = (string)call_user_func($data['row_marker_callable'], $row);
+}
 ?>
 <div class="idx-card-col px-2">
     <div class="card shadow-sm idx-card h-100 <?= h($cardClass) ?>"<?= $cardStyle === '' ? '' : ' style="' . h($cardStyle) . '"' ?>>
+        <?= $cardMarker ?>
 
         <?php if ($cardElement): ?>
 

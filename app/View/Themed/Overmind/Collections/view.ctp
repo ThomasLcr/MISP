@@ -14,6 +14,8 @@
                 ],
                 'right' => [
                     'Collections/View/collection_actions',
+                    'Collections/View/collection_analyst_data',
+                    'Collections/View/collection_graphs',
                 ]
             ],
             [

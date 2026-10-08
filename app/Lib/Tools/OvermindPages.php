@@ -18,6 +18,7 @@ class OvermindPages
         'attributes' => array(
             'index', 'add', 'edit', 'delete', 'add_attachment'
         ),
+        'values' => array('index', 'resolve', 'view'),
         'shadow_attributes' => array('index'),
         'event_delegations' => array('index'),
         'objects' => array('add', 'edit', 'delete'),
@@ -29,6 +30,7 @@ class OvermindPages
         'analystData' => array(
             'index', 'add', 'edit', 'view', 'delete', 'deleteSelection'
         ),
+        'analystGraphs' => array('view'),
 
         // Taxonomy, galaxies and templates
         'tags' => array('index', 'add', 'edit', 'viewGraph'),
@@ -52,6 +54,9 @@ class OvermindPages
             'preview', 'update', 'library_status'
         ),
         'decayingModel' => array('index', 'view', 'add', 'edit', 'import'),
+        'analystProfiles' => array(
+            'index', 'view', 'edit', 'simulate', 'import', 'fork'
+        ),
 
         // Lists and correlation
         'warninglists' => array('index', 'view', 'add', 'edit'),

@@ -82,6 +82,57 @@ if ($m === 'Note') {
         'card_section' => 'attribute',
         'display_in' => ['table', 'card'],
     ];
+} else if ($m === 'Graph') {
+    echo $this->element('genericElements/assetLoader', [
+        'js' => ['intel-graph-thumb', 'intel-graph-thumbs'],
+        'css' => ['intel-graph-thumbs'],
+    ]);
+    $fields[] = [
+        'name' => __('Name'),
+        'sort' => $m . '.name',
+        'element' => 'custom',
+        // The graph's picture (intel-graph-thumbs.js) beside its name
+        'function' => function ($row) {
+            return sprintf(
+                '<div class="igt-cell"><span data-intel-graph-thumb="%s" data-revision="%s" data-surface="index" data-name="%s"></span><span>%s</span></div>',
+                h($row['Graph']['uuid']),
+                h($row['Graph']['revision'] ?? ''),
+                h($row['Graph']['name']),
+                h($row['Graph']['name'])
+            );
+        },
+        'class' => 'idx-col-wrap',
+        'card_section' => 'attribute',
+        'display_in' => ['table', 'card'],
+    ];
+    $fields[] = [
+        'name' => __('Forked from'),
+        'element' => 'custom',
+        'function' => function ($row) use ($baseurl) {
+            if (empty($row['Graph']['forked_from_uuid'])) {
+                return '';
+            }
+            $icon = '<i class="fas fa-code-fork me-1 text-body-secondary" aria-hidden="true"></i>';
+            $parent = $row['Graph']['forked_from'] ?? null;
+            if ($parent === null) {
+                return $icon . '<span class="text-body-secondary">' . __('A fork') . '</span>';
+            }
+            return $icon . sprintf(
+                '<a href="%s">%s</a>',
+                h($baseurl . '/analyst_graphs/view/' . $parent['uuid']),
+                h($parent['name'])
+            );
+        },
+        'card_section' => 'attribute',
+        'display_in' => ['table', 'card'],
+    ];
+    $fields[] = [
+        'name' => __('Nodes'),
+        'data_path' => $m . '.node_count',
+        'element' => 'count',
+        'card_section' => 'top',
+        'display_in' => ['table', 'card'],
+    ];
 } else if ($m === 'Relationship') {
     $fields[] = [
         'name' => __('Relationship type'),
@@ -146,7 +197,7 @@ $fields[] = [
             'label' => __('Edit'),
             'icon' => 'pen-to-square',
             'url' => $baseurl . '/analystData/edit/' . $m . '/%id%',
-            'requirement' => $canEdit,
+            'requirement' => $m === 'Graph' ? false : $canEdit,
         ],
         [
             'type' => 'modal',

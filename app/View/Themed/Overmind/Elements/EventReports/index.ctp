@@ -126,7 +126,7 @@ $fields = [
             [
                 'type' => 'modal',
                 'label' => __('Add note'),
-                'icon' => 'text-primary misp-icon misp-icon-analyst-note misp-simple',
+                'icon' => 'text-accent misp-icon misp-icon-analyst-note misp-simple',
                 'url' => $baseurl . '/analystData/add/Note/%uuid%/EventReport',
                 'url_params_data_paths' => ['uuid' => 'EventReport.uuid'],
                 'requirement' => !empty($me['Role']['perm_analyst_data'])
@@ -220,6 +220,14 @@ echo $this->element('genericElementsBS5/IndexTable/scaffold', [
                     $origin['palette']['sectionBg'],
                     $origin['palette']['badgeBorder']
                 );
+            },
+            'row_marker_callable' => function ($row) use ($inExtensionView) {
+                if (!$inExtensionView) {
+                    return '';
+                }
+                return $this->element('Events/View/extension_band', [
+                    'event_id' => $row['EventReport']['event_id'] ?? 0,
+                ]);
             },
             'row_dblclick_url' => $baseurl . '/event_reports/view/%id%',
         ]

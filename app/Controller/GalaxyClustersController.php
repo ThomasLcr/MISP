@@ -1055,6 +1055,16 @@ class GalaxyClustersController extends AppController
     /**
      * @param  mixed $id ID or UUID of the cluster
      */
+    public function relatedClusters($id)
+    {
+        $this->request->allowMethod(['get']);
+        $relations = $this->GalaxyCluster->outboundRelations($this->Auth->user(), $id);
+        return $this->RestResponse->viewData(['relations' => $relations], 'json');
+    }
+
+    /**
+     * @param  mixed $id ID or UUID of the cluster
+     */
     public function viewRelationTree($id, $includeInbound=1)
     {
         $cluster = $this->GalaxyCluster->fetchIfAuthorized($this->Auth->user(), $id, 'view', $throwErrors=true, $full=true);
@@ -1100,7 +1110,7 @@ class GalaxyClustersController extends AppController
         $galaxy = $this->GalaxyCluster->Galaxy->find('first', array(
             'recursive' => -1,
             'conditions' => array('Galaxy.type' => $galaxyType),
-            'fields' => array('Galaxy.id', 'Galaxy.type', 'Galaxy.name'),
+            'fields' => array('Galaxy.id', 'Galaxy.type', 'Galaxy.name', 'Galaxy.icon'),
         ));
         if (empty($galaxy)) {
             // Unknown galaxy type — empty result rather than 404 so the
@@ -1141,6 +1151,11 @@ class GalaxyClustersController extends AppController
             'limit' => 50,
         ));
 
+        App::uses('FontAwesomeHelper', 'View/Helper');
+        $icon = $galaxy['Galaxy']['icon'];
+        $iconClass = empty($icon)
+            ? null
+            : FontAwesomeHelper::findNamespace($icon) . ' fa-' . $icon;
         $payload = array();
         foreach ($rows as $row) {
             $cluster = $row['GalaxyCluster'];
@@ -1151,6 +1166,9 @@ class GalaxyClustersController extends AppController
                     ? (string)$cluster['description']
                     : '',
                 'uuid' => $cluster['uuid'],
+                'galaxy' => $galaxy['Galaxy']['name'],
+                'galaxy_id' => (int)$galaxy['Galaxy']['id'],
+                'icon_class' => $iconClass,
             );
         }
         return $this->RestResponse->viewData($payload, 'json');

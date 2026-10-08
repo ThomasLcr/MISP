@@ -106,9 +106,10 @@ class Warninglist extends AppModel
      * Attach warninglist matches to attributes or proposals with IDS mark.
      *
      * @param array $attributes
+     * @param bool $withComments Fetch the matched entries' comments
      * @return array Warninglist ID => name
      */
-    public function attachWarninglistToAttributes(array &$attributes)
+    public function attachWarninglistToAttributes(array &$attributes, $withComments = true)
     {
         if (empty($attributes)) {
             return [];
@@ -132,7 +133,7 @@ class Warninglist extends AppModel
                     }
                 }
             }
-            if (!empty($eventWarnings)) {
+            if ($withComments && !empty($eventWarnings)) {
                 $this->assignComments($attributes);
             }
             return $eventWarnings;
@@ -229,7 +230,7 @@ class Warninglist extends AppModel
             $pipe->exec();
         }
 
-        if (!empty($eventWarnings)) {
+        if ($withComments && !empty($eventWarnings)) {
             $this->assignComments($attributes);
         }
 

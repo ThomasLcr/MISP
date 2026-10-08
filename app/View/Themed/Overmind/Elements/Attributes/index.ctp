@@ -39,7 +39,8 @@ $galaxyOptions = isset($galaxyOptions) ? $galaxyOptions : null;
  *
  * Fields specific to actions:
  *
- * - type           : modal | navigate | toggle | copy | divider
+ * - type           : modal | navigate | toggle | copy | divider | intelGraph
+ * - items          : intelGraph only: fn($row) → the records "Add to graph" sends
  * - label          : Displayed text
  * - label_on/off   : Text for toggle
  * - icon           : FontAwesome icon
@@ -57,6 +58,8 @@ $model      = !empty($firstRow['Attribute']) ? 'Attribute' : null;
 $_canModify = !empty($mayModify);
 $_canPropose = !empty($me['Role']['perm_add']);
 $_canAnalystData = !empty($me['Role']['perm_analyst_data']);
+$_canGraph = $this->Acl->canAccess('analystGraphs', 'addNodes');
+$_canCollect = $this->Acl->canAccess('collectionElements', 'addElementToCollection');
 // Enrichment / Cortex expansion (misp-modules): the "Enrich" actions are only
 // offered when the matching services plugin is enabled and the user can add data.
 $_enrichmentEnabled = (bool)Configure::read('Plugin.Enrichment_services_enable');
@@ -346,7 +349,7 @@ $fields = array_merge($fields, [
             [
                 'type' => 'modal',
                 'label' => __('Add note'),
-                'icon' => 'text-primary misp-icon misp-icon-analyst-note misp-simple',
+                'icon' => 'text-accent misp-icon misp-icon-analyst-note misp-simple',
                 'url' => $baseurl . '/analystData/add/Note/%uuid%/Attribute',
                 'url_params_data_paths' => ['uuid' => $path('uuid')],
                 'requirement' => function($row) use ($inEventView, $_canAnalystData) {
@@ -371,6 +374,102 @@ $fields = array_merge($fields, [
                 'url_params_data_paths' => ['uuid' => $path('uuid')],
                 'requirement' => function($row) use ($inEventView, $_canAnalystData) {
                     return $inEventView && $_canAnalystData && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'divider',
+                'requirement' => function($row) use ($_canGraph, $_canCollect) {
+                    return ($_canGraph || $_canCollect) && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Add to collection'),
+                'icon' => 'folder-plus',
+                'url' => $baseurl . '/collectionElements/addElementToCollection/Attribute/%uuid%',
+                'url_params_data_paths' => ['uuid' => $path('uuid')],
+                'size' => 'xl',
+                'requirement' => function($row) use ($_canCollect) {
+                    return $_canCollect && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'intelGraph',
+                'label' => __('Add to graph'),
+                'icon' => 'text-info fas fa-circle-nodes',
+                'items' => function ($row) use ($path) {
+                    return [['type' => 'Attribute', 'uuid' => Hash::get($row, $path('uuid')), 'label' => Hash::get($row, $path('value'))]];
+                },
+                'requirement' => function($row) use ($_canGraph) {
+                    return $_canGraph && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'divider',
+                'requirement' => function($row) use ($_rowMayModify, $_enrichmentEnabled, $_cortexEnabled) {
+                    return $_rowMayModify($row) && ($_enrichmentEnabled || $_cortexEnabled) && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Enrich'),
+                'icon' => 'fas fa-wand-magic-sparkles text-enrichment',
+                'url' => $baseurl . '/events/queryEnrichment/%id%/0/Enrichment/Attribute',
+                'requirement' => function($row) use ($_rowMayModify, $_enrichmentEnabled) {
+                    return $_rowMayModify($row) && $_enrichmentEnabled && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Enrich (Cortex)'),
+                'icon' => 'eye',
+                'url' => $baseurl . '/events/queryEnrichment/%id%/0/Cortex/Attribute',
+                'requirement' => function($row) use ($_rowMayModify, $_cortexEnabled) {
+                    return $_rowMayModify($row) && $_cortexEnabled && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Propose change'),
+                'icon' => 'comment-dots',
+                'url' => $baseurl . '/shadow_attributes/edit/%id%',
+                'requirement' => function($row) use ($_canPropose) {
+                    return  $_canPropose && empty($row['is_proposal']) && empty($row['deleted']);
+                }
+            ],
+            [
+                'type' => 'divider',
+                'requirement' => function($row) use ($_rowMayModify) {
+                    return $_rowMayModify($row) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Edit'),
+                'icon' => 'pen-to-square',
+                'url' => $baseurl . '/attributes/edit/%id%',
+                'requirement' => function($row) use ($_rowMayModify) {
+                    return $_rowMayModify($row) && empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Restore'),
+                'icon' => 'rotate-left',
+                'url' => $baseurl . '/attributes/restore/%id%',
+                'class' => 'text-success',
+                'requirement' => function($row) use ($_rowMayModify) {
+                    return $_rowMayModify($row) && !empty($row['deleted']) && empty($row['is_proposal']);
+                }
+            ],
+            [
+                'type' => 'modal',
+                'label' => __('Delete'),
+                'icon' => 'trash',
+                'url' => $baseurl . '/attributes/delete/%id%',
+                'class' => 'text-danger',
+                'requirement' => function($row) use ($_rowMayModify) {
+                    return $_rowMayModify($row) && empty($row['deleted']) && empty($row['is_proposal']);
                 }
             ]
         ]
@@ -565,6 +664,14 @@ echo $this->element('genericElementsBS5/IndexTable/scaffold', [
                     $origin['palette']['sectionBg'],
                     $origin['palette']['badgeBorder']
                 );
+            },
+            'row_marker_callable' => function($row) use ($inExtensionView) {
+                if (!$inExtensionView) {
+                    return '';
+                }
+                return $this->element('Events/View/extension_band', [
+                    'event_id' => $row['event_id'] ?? 0,
+                ]);
             },
             'filter_bar' => $filterBar + $massActions,
             'fields' => $fields,

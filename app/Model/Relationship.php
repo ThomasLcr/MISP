@@ -130,6 +130,24 @@ class Relationship extends AnalystData
                 $data = $data[0];
             }
             $data = $this->rearrangeData($data, 'Object');
+        } else if ($type == 'GalaxyCluster') {
+            $this->GalaxyCluster = ClassRegistry::init('GalaxyCluster');
+            $cluster = $this->GalaxyCluster->fetchGalaxyClusters($user, [
+                'conditions' => ['GalaxyCluster.uuid' => $uuid],
+                'fields' => [
+                    'GalaxyCluster.id', 'GalaxyCluster.uuid',
+                    'GalaxyCluster.value', 'GalaxyCluster.tag_name',
+                    'GalaxyCluster.type', 'GalaxyCluster.galaxy_id',
+                    'GalaxyCluster.deleted',
+                ],
+                'contain' => ['Galaxy' => ['fields' => ['id', 'name', 'type']]],
+                'first' => true,
+            ]);
+            if (!empty($cluster['GalaxyCluster'])) {
+                $data = ['GalaxyCluster' => $cluster['GalaxyCluster'] + [
+                    'Galaxy' => $cluster['Galaxy'] ?? [],
+                ]];
+            }
         } else if ($type == 'Note') {
             $this->Note = ClassRegistry::init('Note');
             $params = [
@@ -216,6 +234,21 @@ class Relationship extends AnalystData
         }
 
         return $inboundRelations;
+    }
+
+    /**
+     * @param array $user
+     * @param string $object_type
+     * @param array $object_uuids
+     * @return array Inbound relationships keyed by the uuid they point at
+     */
+    public function getInboundRelationshipsForUuids(array $user, $object_type, array $object_uuids): array
+    {
+        $byUuid = [];
+        foreach ($this->getInboundRelationships($user, $object_type, $object_uuids) as $relationship) {
+            $byUuid[$relationship['Relationship']['related_object_uuid']][] = $relationship['Relationship'];
+        }
+        return $byUuid;
     }
 
     public function countRelationships(): array

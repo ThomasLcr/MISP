@@ -5,6 +5,14 @@
     $table_data[] = array('key' => __('Galaxy ID'), 'value' => $galaxy['Galaxy']['id']);
     $table_data[] = array('key' => __('Name'), 'value' => $galaxy['Galaxy']['name']);
     $table_data[] = array('key' => __('Namespace'), 'value' => $galaxy['Galaxy']['namespace']);
+    $galaxyCategory = $galaxy['Galaxy']['category'] ?? '';
+    $galaxyKind = $galaxy['Galaxy']['kind'] ?? '';
+    $table_data[] = array(
+        'key' => __('Category'),
+        'value' => empty($galaxyCategory) ?
+            __('Not classified') :
+            (empty($galaxyKind) ? $galaxyCategory : $galaxyCategory . ' / ' . $galaxyKind)
+    );
     $table_data[] = array('key' => __('UUID'), 'value' => $galaxy['Galaxy']['uuid']);
     $table_data[] = array('key' => __('Description'), 'value' => $galaxy['Galaxy']['description']);
     $table_data[] = array('key' => __('Default'), 'boolean' => $galaxy['Galaxy']['default'], 'class' => 'black');

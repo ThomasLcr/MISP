@@ -1,5 +1,7 @@
 <?php
 App::uses('AppController', 'Controller');
+App::uses('ValueUrlTool', 'Tools/ValueProfile');
+App::uses('Value', 'Model');
 
 class CollectionsController extends AppController
 {
@@ -37,6 +39,12 @@ class CollectionsController extends AppController
         $attachTarget = $this->__getAttachTargetFromRequest();
         $attachElementType = $attachTarget['type'] ?? null;
         $attachElementUuids = $attachTarget['uuids'] ?? [];
+        // The form re-posts these, and a Value travels as its encoded literal.
+        $attachElementLabels = $attachElementUuids;
+        if (!empty($attachTarget['values'])) {
+            $attachElementLabels = array_values($attachTarget['values']);
+            $attachElementUuids = array_map(['ValueUrlTool', 'encode'], $attachElementLabels);
+        }
         $attachElementUuid = !empty($attachElementUuids) ? $attachElementUuids[0] : null;
         $params = [];
         $this->loadModel('Event');
@@ -50,6 +58,7 @@ class CollectionsController extends AppController
                     ? ['action' => 'index']
                     : $this->referer(['controller' => 'collections', 'action' => 'index'], true),
                 'beforeSave' => function (array $collection) use ($currentUser) {
+                    $this->__assertCanUseNestedElements($collection, []);
                     if (isset($collection['Collection']['distribution']) && $collection['Collection']['distribution'] == 4) {
                         $canSGBeUsed = $this->Event->SharingGroup->checkIfCanBeUsed($currentUser, $this->_isRest(), $collection, 'Collection');
                         if ($canSGBeUsed !== true) {
@@ -66,7 +75,8 @@ class CollectionsController extends AppController
                                 $collection['Collection']['id'],
                                 $attachTarget['type'],
                                 $attachElementUuid,
-                                $attachTarget['description'] ?? ''
+                                $attachTarget['description'] ?? '',
+                                $attachTarget['values'][$attachElementUuid] ?? null
                             );
                         }
                     }
@@ -92,7 +102,7 @@ class CollectionsController extends AppController
         // needs its header back.
         $this->set('embedded', $this->request->is('get') && (bool)$this->request->query('embedded'));
         $attachElementDescription = $attachTarget['description'] ?? '';
-        $this->set(compact('dropdownData', 'attachElementType', 'attachElementUuid', 'attachElementUuids', 'attachElementDescription'));
+        $this->set(compact('dropdownData', 'attachElementType', 'attachElementUuid', 'attachElementUuids', 'attachElementLabels', 'attachElementDescription'));
         if($this->theme === "Overmind"){
             $this->layout = false;
         }
@@ -148,6 +158,21 @@ class CollectionsController extends AppController
         if (!in_array($attachElementType, $this->Collection->CollectionElement->valid_types, true)) {
             throw new BadRequestException(__('Invalid element type for collection attachment.'));
         }
+        // A Value is attached by its encoded literal, as on /values/view.
+        $values = [];
+        if ($attachElementType === 'Value') {
+            $encoded = $attachElementUuids;
+            $attachElementUuids = [];
+            foreach ($encoded as $b64) {
+                $value = ValueUrlTool::decode($b64);
+                if ($value === null || trim($value) === '') {
+                    throw new BadRequestException(__('Invalid value for collection attachment.'));
+                }
+                $uuid = Value::uuidFor($value);
+                $values[$uuid] = $value;
+                $attachElementUuids[] = $uuid;
+            }
+        }
         foreach ($attachElementUuids as $attachElementUuid) {
             if (!Validation::uuid($attachElementUuid)) {
                 throw new BadRequestException(__('Invalid element UUID for collection attachment.'));
@@ -158,25 +183,19 @@ class CollectionsController extends AppController
             'type' => $attachElementType,
             'uuid' => $attachElementUuids[0],
             'uuids' => $attachElementUuids,
+            'values' => $values,
             'description' => $attachElementDescription,
         ];
     }
 
-    private function __attachElementToCollection($collectionId, $elementType, $elementUuid, $description = '')
+    private function __attachElementToCollection($collectionId, $elementType, $elementUuid, $description = '', $value = null)
     {
-        if ($elementType === 'Event') {
-            // Mirror CollectionElementsController::addElementToCollection()'s visibility
-            // check: without it, a user could attach a UUID they cannot see to a
-            // collection they control, and probe for the existence of arbitrary event
-            // UUIDs (view() only ever renders ACL-filtered fetchSimpleEvents() output,
-            // so this does not itself grant read access to the event's content).
-            $this->loadModel('Event');
-            $event = $this->Event->fetchSimpleEvent($this->Auth->user(), $elementUuid, [
-                'fields' => ['Event.id']
-            ]);
-            if (empty($event)) {
-                throw new NotFoundException(__('Invalid event or not authorized.'));
-            }
+        // Without the check a user could attach a UUID they cannot see to a
+        // collection they control, and probe for the existence of arbitrary
+        // UUIDs.
+        $readable = $this->Collection->CollectionElement->readableUuids($this->Auth->user(), $elementType, [$elementUuid]);
+        if (empty($readable)) {
+            throw new NotFoundException(__('Invalid element or not authorized.'));
         }
         $this->Collection->CollectionElement->create();
         try {
@@ -185,6 +204,7 @@ class CollectionsController extends AppController
                     'collection_id' => $collectionId,
                     'element_type' => $elementType,
                     'element_uuid' => $elementUuid,
+                    'value' => $value,
                     'description' => $description
                 ]
             ]);
@@ -192,6 +212,48 @@ class CollectionsController extends AppController
             // Collection create can be retried safely; ignore duplicate attachment rows.
             if (empty($e->errorInfo[0]) || $e->errorInfo[0] != 23000) {
                 throw $e;
+            }
+        }
+    }
+
+    /**
+     * add() and edit() accept the element corpus nested in the collection and
+     * hand it to captureElements(), which trusts it. Elements the collection
+     * already holds are matched by their row uuid and keep their target, so
+     * only the new ones need the readability check.
+     *
+     * @param array $collection
+     * @param array $existingRowUuids
+     * @throws NotFoundException
+     */
+    private function __assertCanUseNestedElements(array $collection, array $existingRowUuids)
+    {
+        $elements = $collection['Collection']['CollectionElement'] ?? [];
+        if (!is_array($elements)) {
+            return;
+        }
+        $byType = [];
+        foreach ($elements as $element) {
+            if (!is_array($element) || in_array($element['uuid'] ?? null, $existingRowUuids, true)) {
+                continue;
+            }
+            $type = $element['element_type'] ?? null;
+            if ($type === 'Value') {
+                continue;
+            }
+            $uuid = $element['element_uuid'] ?? null;
+            if (!is_string($uuid) || $uuid === '') {
+                continue;
+            }
+            if (empty($type)) {
+                $type = $this->Collection->CollectionElement->deduceType($uuid);
+            }
+            $byType[$type][] = $uuid;
+        }
+        foreach ($byType as $type => $uuids) {
+            $readable = $this->Collection->CollectionElement->readableUuids($this->Auth->user(), $type, $uuids);
+            if (count(array_diff($uuids, $readable)) > 0) {
+                throw new NotFoundException(__('Invalid element or not authorized.'));
             }
         }
     }
@@ -217,6 +279,10 @@ class CollectionsController extends AppController
                 $this->request->data = ['Collection' => $this->request->data];
             }
             $data = $this->request->data;
+            $this->__assertCanUseNestedElements($data, $this->Collection->CollectionElement->find('column', [
+                'conditions' => ['CollectionElement.collection_id' => $oldCollection['Collection']['id']],
+                'fields' => ['CollectionElement.uuid']
+            ]));
             // The sharing-group authorisation check must run against the EFFECTIVE distribution
             // and sharing group after the edit, not only when 'distribution' is present in the
             // body. CRUDComponent::edit() retains the stored value for any field the request
@@ -322,6 +388,10 @@ class CollectionsController extends AppController
         }
         $this->set('menuData', array('menuList' => 'collections', 'menuItem' => 'view'));
         $user = $this->Auth->user();
+        if ($this->IndexFilter->isRest()) {
+            $this->Collection->includeAnalystData = true;
+            $this->Collection->includeAnalystDataRecursive = true;
+        }
         $params = [
             'contain' => [
                 'Orgc',
@@ -343,61 +413,9 @@ class CollectionsController extends AppController
         $data = $this->viewVars['data'];
         $elements = $data['Collection']['CollectionElement'] ?? [];
 
-        // Enrich elements with a human-readable reference so the elements
-        // index can display the resolved target instead of the raw UUID.
-        $eventUuids = [];
-        $clusterUuids = [];
-        foreach ($elements as $element) {
-            $elementType = $element['element_type'] ?? null;
-            if (empty($element['element_uuid'])) {
-                continue;
-            }
-            if ($elementType === 'Event') {
-                $eventUuids[] = $element['element_uuid'];
-            } elseif ($elementType === 'GalaxyCluster') {
-                $clusterUuids[] = $element['element_uuid'];
-            }
-        }
-
-        $eventsByUuid = [];
-        if (!empty($eventUuids)) {
-            $this->loadModel('Event');
-            $events = $this->Event->fetchSimpleEvents($user, [
-                'conditions' => ['Event.uuid' => array_values(array_unique($eventUuids))]
-            ]);
-            foreach ($events as $event) {
-                $eventsByUuid[$event['Event']['uuid']] = [
-                    'id' => $event['Event']['id'],
-                    'info' => $event['Event']['info'],
-                ];
-            }
-        }
-
-        $clustersByUuid = [];
-        if (!empty($clusterUuids)) {
-            $this->loadModel('GalaxyCluster');
-            $clusters = $this->GalaxyCluster->fetchGalaxyClusters($user, [
-                'conditions' => ['GalaxyCluster.uuid' => array_values(array_unique($clusterUuids))]
-            ]);
-            foreach ($clusters as $cluster) {
-                $arranged = $this->GalaxyCluster->arrangeData($cluster);
-                $clustersByUuid[$cluster['GalaxyCluster']['uuid']] = $arranged['GalaxyCluster'];
-            }
-        }
-
-        if (!empty($eventsByUuid) || !empty($clustersByUuid)) {
-            foreach ($elements as $k => $element) {
-                $elementType = $element['element_type'] ?? null;
-                $elementUuid = $element['element_uuid'] ?? null;
-                if ($elementType === 'Event' && isset($eventsByUuid[$elementUuid])) {
-                    $elements[$k]['Event'] = $eventsByUuid[$elementUuid];
-                } elseif ($elementType === 'GalaxyCluster' && isset($clustersByUuid[$elementUuid])) {
-                    $elements[$k]['GalaxyCluster'] = [$clustersByUuid[$elementUuid]];
-                }
-            }
-            $data['Collection']['CollectionElement'] = $elements;
-            $this->set('data', $data);
-        }
+        $elements = $this->Collection->CollectionElement->attachTargets($user, $elements);
+        $data['Collection']['CollectionElement'] = $elements;
+        $this->set('data', $data);
 
         $totalElements = count($elements);
         $this->request->params['paging']['CollectionElement'] = [
@@ -601,7 +619,7 @@ class CollectionsController extends AppController
             throw new MethodNotAllowedException(__('This endpoint is JSON only.'));
         }
         $result = $this->__getCollectionsByElementUuids($element_type, [$element_uuid]);
-        return $this->RestResponse->viewData($result[$element_uuid], $this->response->type());
+        return $this->RestResponse->viewData($result[$element_uuid] ?? [], $this->response->type());
     }
 
     /**
@@ -637,11 +655,31 @@ class CollectionsController extends AppController
         return $this->RestResponse->viewData($result, $this->response->type());
     }
 
-    private function __getCollectionsByElementUuids($elementType, array $uuids)
+    /**
+     * For Value, the keys are the values encoded as on /values/view, and the
+     * response is keyed by them in turn.
+     */
+    private function __getCollectionsByElementUuids($elementType, array $keys)
     {
-        $uuids = array_values(array_unique(array_filter($uuids)));
-        if (empty($uuids)) {
+        $keys = array_values(array_unique(array_filter($keys, 'is_string')));
+        if (empty($keys)) {
             return [];
+        }
+        $keyByUuid = [];
+        foreach ($keys as $key) {
+            if ($elementType === 'Value') {
+                $value = ValueUrlTool::decode($key);
+                if ($value === null) {
+                    continue;
+                }
+                $keyByUuid[Value::uuidFor($value)] = $key;
+            } else {
+                $keyByUuid[$key] = $key;
+            }
+        }
+        $uuids = array_keys($keyByUuid);
+        if (empty($uuids)) {
+            return array_fill_keys($keys, []);
         }
 
         $this->loadModel('CollectionElement');
@@ -654,7 +692,7 @@ class CollectionsController extends AppController
             'fields' => ['CollectionElement.collection_id', 'CollectionElement.element_uuid']
         ]);
 
-        $result = array_fill_keys($uuids, []);
+        $result = array_fill_keys($keys, []);
         if (empty($elements)) {
             return $result;
         }
@@ -682,7 +720,7 @@ class CollectionsController extends AppController
             if (!isset($collectionsById[$collectionId])) {
                 continue;
             }
-            $result[$elementUuid][] = $collectionsById[$collectionId];
+            $result[$keyByUuid[$elementUuid]][] = $collectionsById[$collectionId];
         }
 
         return $result;

@@ -2109,6 +2109,70 @@ class GalaxyCluster extends AppModel
         return $cluster;
     }
 
+    /**
+     * The relations stored on one cluster, each with the cluster it points
+     * at. A target is resolved by id: one uuid can name a cluster in several
+     * galaxies. A relation the user may not see, or whose target they may
+     * not see or this instance lacks, is left out.
+     *
+     * @param array $user
+     * @param int|string $clusterId ID or UUID
+     * @return array list of ['relation' => string, 'cluster' => array]
+     */
+    public function outboundRelations(array $user, $clusterId)
+    {
+        $cluster = $this->fetchIfAuthorized($user, $clusterId, 'view');
+        $relations = $this->GalaxyClusterRelation->find('all', [
+            'conditions' => ['AND' => [
+                ['GalaxyClusterRelation.galaxy_cluster_id' => $cluster['GalaxyCluster']['id']],
+                ['GalaxyClusterRelation.referenced_galaxy_cluster_id >' => 0],
+                $this->GalaxyClusterRelation->buildConditions($user, false),
+            ]],
+            'fields' => [
+                'GalaxyClusterRelation.referenced_galaxy_cluster_id',
+                'GalaxyClusterRelation.referenced_galaxy_cluster_type',
+            ],
+            'recursive' => -1,
+        ]);
+        if (empty($relations)) {
+            return [];
+        }
+        $targetIds = array_unique(array_column(
+            array_column($relations, 'GalaxyClusterRelation'),
+            'referenced_galaxy_cluster_id'
+        ));
+        $targets = $this->fetchGalaxyClusters($user, [
+            'conditions' => [
+                'GalaxyCluster.id' => array_values($targetIds),
+                'GalaxyCluster.deleted' => 0,
+            ],
+            'fields' => [
+                'GalaxyCluster.id', 'GalaxyCluster.uuid', 'GalaxyCluster.value',
+                'GalaxyCluster.type', 'GalaxyCluster.tag_name',
+            ],
+            'contain' => ['Galaxy' => ['fields' => ['Galaxy.name']]],
+        ]);
+        $byId = [];
+        foreach ($targets as $target) {
+            $galaxy = $target['GalaxyCluster']['Galaxy'] ?? $target['Galaxy'] ?? [];
+            unset($target['GalaxyCluster']['Galaxy']);
+            $byId[$target['GalaxyCluster']['id']] = $target['GalaxyCluster'] + [
+                'galaxy_name' => $galaxy['name'] ?? null,
+            ];
+        }
+        $result = [];
+        foreach ($relations as $relation) {
+            $relation = $relation['GalaxyClusterRelation'];
+            if (isset($byId[$relation['referenced_galaxy_cluster_id']])) {
+                $result[] = [
+                    'relation' => $relation['referenced_galaxy_cluster_type'],
+                    'cluster' => $byId[$relation['referenced_galaxy_cluster_id']],
+                ];
+            }
+        }
+        return $result;
+    }
+
     public function attachClusterToRelations($user, $cluster, $both=true)
     {
         if (!empty($cluster['GalaxyCluster']['GalaxyClusterRelation'])) {

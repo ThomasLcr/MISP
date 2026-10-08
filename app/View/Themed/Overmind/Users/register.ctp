@@ -1,6 +1,6 @@
 <div class="d-flex align-items-center justify-content-center overflow-y-auto" style="position: fixed; inset: 0;">
     <div class="col-md-auto py-4" style="max-width: 560px; width: 100%;">
-        <div class="card shadow-lg p-4" style="background-color: #ffffff">
+        <div class="card shadow-lg p-4" style="background-color: var(--misp-login-card-bg, #ffffff)">
 
             <!-- Logo -->
             <div class="d-flex align-items-center justify-content-center mb-4">
@@ -14,7 +14,7 @@
                 } else {
                     echo $this->Html->image('misp-logo-main-cmyk-hori-.png', [
                         'alt' => __('MISP Logo'),
-                        'class' => 'main-logo',
+                        'class' => 'main-logo misp-artwork-logo',
                         'style' => 'max-height: 80px; height: auto; width: auto;'
                     ]);
                 }
@@ -23,12 +23,12 @@
 
             <!-- Title -->
             <div class="d-flex align-items-center justify-content-center gap-3 mb-4">
-                <h4 class="fw-semibold text-center" style="color: #28191B;">
+                <h4 class="fw-semibold text-center" style="color: var(--misp-login-heading, #28191B);">
                     <?= __('Register for a new user account') ?>
                 </h4>
                 <!-- Self-registration message -->
                 <?php if (!empty($message)): ?>
-                    <i class="fa-solid fa-info-circle text-primary mb-1"
+                    <i class="fa-solid fa-info-circle text-accent mb-1"
                     tabindex="0"
                     title="<?= h($message) ?>"
                     aria-label="<?= h($message) ?>"></i>

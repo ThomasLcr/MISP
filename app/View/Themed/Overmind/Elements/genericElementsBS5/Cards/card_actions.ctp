@@ -17,6 +17,7 @@
  * - 'tour' => string (optional) — emits data-tour, an anchor for the
  *   onboarding tour to spotlight this specific action.
  * - 'type' => 'post' (optional) — renders a postLink, with 'confirm' and 'id'
+ * - 'attributes' => array (optional) — more attributes of the link, name => value
  *
  * Separator params :
  * - 'divider' => true          a hairline between two groups
@@ -48,10 +49,10 @@ $renderDivider = function (array $spec) {
     <!-- HEADER -->
     <div class="p-3 border-bottom">
         <div class="d-flex align-items-center gap-2">
-            <div class="rounded-2 d-flex align-items-center justify-content-center"
-                 style="width:36px;height:36px;background:#ccfbf1;">
+            <div class="misp-icon-tile rounded-2 d-flex align-items-center justify-content-center"
+                 style="width:36px;height:36px;--tile:#0f766e;--tile-bg:#ccfbf1;">
                 <i class="fas fa-bolt"
-                   style="color:#0f766e;font-size:1rem;"></i>
+                   style="font-size:1rem;"></i>
             </div>
             <div class="fw-bold lh-1"><?= __('Quick action') ?></div>
         </div>
@@ -116,7 +117,10 @@ $renderDivider = function (array $spec) {
                            style="<?= $btnStyle ?>"
                            href="<?= h($url) ?>"
                            <?= !empty($action['tour']) ? 'data-tour="' . h($action['tour']) . '"' : '' ?>
-                           <?= !empty($action['onclick']) ? 'onclick="' . $action['onclick'] . '"' : '' ?>>
+                           <?= !empty($action['onclick']) ? 'onclick="' . $action['onclick'] . '"' : '' ?>
+                           <?php foreach ($action['attributes'] ?? [] as $name => $value): ?>
+                               <?= h($name) ?>="<?= h($value) ?>"
+                           <?php endforeach; ?>>
                             <?= $innerHtml ?>
                         </a>
                     <?php endif; ?>

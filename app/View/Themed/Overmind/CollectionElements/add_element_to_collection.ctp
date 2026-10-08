@@ -1,6 +1,7 @@
 <?php
 /*
- * Attach one element — an event, a galaxy cluster — to a collection.
+ * Attach one element — an event, a cluster, an attribute, an object, a value —
+ * to a collection.
  *
  * "Add it to a collection" and "add it to a collection I do not have yet" are
  * the same intent, so they are one control: the picker's first entry is
@@ -14,7 +15,10 @@
  *   $dropdownData['collections']  id => name, the collections of the user's org
  *   $alreadyInCollectionIds       ids among those that already hold the element
  *   $elementType, $elementUuid    what is being attached
+ *   $elementValue                 the literal, for a Value element
  */
+App::uses('ValueUrlTool', 'Tools/ValueProfile');
+$elementValue = $elementValue ?? null;
 
 $collections = $dropdownData['collections'] ?? [];
 $alreadyIn = array_map('strval', $alreadyInCollectionIds ?? []);
@@ -23,7 +27,8 @@ $alreadyIn = array_map('strval', $alreadyInCollectionIds ?? []);
 $newValue = '__new__';
 
 $newCollectionUrl = $baseurl . '/collections/add?embedded=1&attach_element_type='
-    . rawurlencode($elementType) . '&attach_element_uuid=' . rawurlencode($elementUuid);
+    . rawurlencode($elementType) . '&attach_element_uuid='
+    . rawurlencode($elementValue !== null ? ValueUrlTool::encode($elementValue) : $elementUuid);
 
 /* A collection that already holds the element stays in the list, suffixed and
  * disabled: the user recognises it, and cannot pick a no-op. */
@@ -85,13 +90,13 @@ echo $this->Form->create('CollectionElement', [
         <!-- ── ELEMENT BEING ATTACHED ───────-->
         <div class="alert alert-light border d-flex align-items-center gap-3 mb-0 js-picker-existing<?= $startsNew ? ' d-none' : '' ?>"
              role="alert" style="border-color:var(--bs-primary) !important;">
-            <i class="fas fa-link text-primary"></i>
+            <i class="fas fa-link text-accent"></i>
             <div class="flex-grow-1">
                 <div class="fw-semibold" style="font-size:.85rem;">
                     <?= __('This %s will be attached', h($elementType)) ?>
                 </div>
                 <div class="text-muted" style="font-size:.75rem; margin-top:.15rem;">
-                    <code><?= h($elementUuid) ?></code>
+                    <code class="text-break"><?= h($elementValue ?? $elementUuid) ?></code>
                 </div>
             </div>
         </div>
@@ -142,6 +147,10 @@ echo $this->Form->create('CollectionElement', [
     'url' => $newCollectionUrl,
     'loading' => __('Loading the collection form…'),
     'failed' => __('Could not load the collection form.'),
+    'saved' => __('Element added to the Collection.'),
+    'saveFailed' => __('Element could not be added to the Collection.'),
+    'elementType' => $elementType,
+    'elementUuid' => $elementUuid,
 ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
 </script>
 
@@ -191,7 +200,7 @@ function initCollectionPicker() {
         if (loaded) { return; }
         loaded = true;
         box.innerHTML = '<div class="text-center text-muted py-4">'
-            + '<div class="spinner-border spinner-border-sm me-2" role="status"></div>'
+            + '<div class="misp-loader misp-loader-sm mb-2" role="status"></div>'
             + cfg.loading + '</div>';
         fetch(cfg.url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) {
@@ -233,11 +242,56 @@ function initCollectionPicker() {
     select.addEventListener('change', apply);
     apply();
 
-    /* Belt and braces: the picker's submit is hidden in New collection mode, so
-       this only ever fires if something else submits the form. */
+    /* Saved in place: a reload would put an event page back on its first tab.
+       The picker's submit is hidden in New collection mode, so that branch only
+       guards against something else submitting the form. */
+    /* openModal runs this before it shows the modal, and Bootstrap ignores a
+       hide() while the modal is still fading in. */
+    var modalEl = form ? form.closest('.modal') : null;
+    var shown = !!modalEl && modalEl.classList.contains('show');
+    if (modalEl && !shown) {
+        modalEl.addEventListener('shown.bs.modal', function () { shown = true; }, { once: true });
+    }
+    function closeModal() {
+        if (!modalEl || typeof bootstrap === 'undefined') { return; }
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        if (shown) { modal.hide(); return; }
+        modalEl.addEventListener('shown.bs.modal', function () { modal.hide(); }, { once: true });
+    }
+
     if (form) {
         form.addEventListener('submit', function (e) {
-            if (select.value === cfg.newValue) { e.preventDefault(); }
+            e.preventDefault();
+            if (select.value === cfg.newValue) { return; }
+            var submit = form.querySelector('[type="submit"]')
+                || (form.closest('.modal-content') || document).querySelector('[type="submit"]');
+            if (submit) { submit.disabled = true; }
+            var collectionId = select.value;
+            fetch(form.action, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form)
+            })
+                .then(function (r) {
+                    return r.json().catch(function () { return {}; }).then(function (body) {
+                        return { ok: r.ok && body.saved !== false, body: body };
+                    });
+                })
+                .then(function (res) {
+                    var message = res.body.message || res.body.errors || (res.ok ? cfg.saved : cfg.saveFailed);
+                    if (typeof message !== 'string') { message = res.ok ? cfg.saved : cfg.saveFailed; }
+                    if (!res.ok) { throw new Error(message); }
+                    closeModal();
+                    if (typeof showToast === 'function') { showToast(message, 'success'); }
+                    document.dispatchEvent(new CustomEvent('misp:collection-element-added', {
+                        detail: { type: cfg.elementType, uuid: cfg.elementUuid, collectionId: collectionId }
+                    }));
+                })
+                .catch(function (err) {
+                    if (submit) { submit.disabled = false; }
+                    if (typeof showToast === 'function') { showToast(err.message || cfg.saveFailed, 'danger'); }
+                });
         });
     }
 }

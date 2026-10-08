@@ -137,6 +137,24 @@ $this->set('headerDescription', $headerDescription);
                 </div>
             </div>
 
+            <!-- CATEGORY -->
+            <div class="col-md-4">
+                <div class="text-muted small text-uppercase fw-bold mb-1">
+                    <?= __('Category') ?>
+                </div>
+
+                <?php if (empty($data['category'])): ?>
+                    <span class="text-muted"><?= __('Not classified') ?></span>
+                <?php else: ?>
+                    <div class="d-inline-flex align-items-center gap-2">
+                        <span class="bg-light rounded px-2 py-1"><?= h($data['category']) ?></span>
+                        <?php if (!empty($data['kind'])): ?>
+                            <span class="text-muted small"><?= h($data['kind']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
             <!-- DISTRIBUTION -->
             <div class="col-md-4">
                 <div class="text-muted small text-uppercase fw-bold mb-1">

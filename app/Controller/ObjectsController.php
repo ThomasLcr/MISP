@@ -1460,6 +1460,8 @@ class ObjectsController extends AppController
                 $object['Object']['Attribute'] = $object['Attribute'];
             }
             return $this->RestResponse->viewData(array('Object' => $object['Object']), $this->response->type());
+        } else if (($this->theme ?? null) === 'Overmind') {
+            $this->redirect('/events/view2/' . $object['Object']['event_id'] . '#tab-objects');
         } else {
             if ($this->theme === 'Overmind') {
                 $this->redirect([
@@ -1472,6 +1474,83 @@ class ObjectsController extends AppController
             }
             $this->redirect('/events/view/' . $object['Object']['event_id']);
         }
+    }
+
+    /**
+     * The objects one reference away from this one, either direction, in its
+     * own event, and the references between all of them.
+     */
+    public function surroundings($uuid)
+    {
+        $this->request->allowMethod(['get']);
+        if (!Validation::uuid($uuid)) {
+            throw new NotFoundException(__('Invalid object.'));
+        }
+        $user = $this->Auth->user();
+        $center = $this->MispObject->fetchObjectSimple($user, [
+            'conditions' => ['Object.uuid' => $uuid, 'Object.deleted' => 0],
+            'fields' => ['Object.id', 'Object.event_id'],
+        ]);
+        if (empty($center)) {
+            throw new NotFoundException(__('Invalid object.'));
+        }
+        $centerId = $center[0]['Object']['id'];
+        $eventId = $center[0]['Object']['event_id'];
+        $live = [
+            'ObjectReference.event_id' => $eventId,
+            'ObjectReference.referenced_type' => 1,
+            'ObjectReference.deleted' => 0,
+        ];
+        $touching = $this->MispObject->ObjectReference->find('all', [
+            'conditions' => $live + ['OR' => [
+                'ObjectReference.object_id' => $centerId,
+                'ObjectReference.referenced_id' => $centerId,
+            ]],
+            'fields' => ['ObjectReference.object_id', 'ObjectReference.referenced_id'],
+            'recursive' => -1,
+        ]);
+        $ids = [$centerId => true];
+        foreach ($touching as $reference) {
+            $ids[$reference['ObjectReference']['object_id']] = true;
+            $ids[$reference['ObjectReference']['referenced_id']] = true;
+        }
+        $objects = $this->MispObject->fetchGraphObjects($user, [
+            'Object.id' => array_map('strval', array_keys($ids)),
+            'Object.event_id' => $eventId,
+        ]);
+        $uuidById = array_column($objects, 'uuid', 'id');
+        $references = [];
+        if (count($uuidById) > 1) {
+            $visible = array_map('strval', array_keys($uuidById));
+            $rows = $this->MispObject->ObjectReference->find('all', [
+                'conditions' => $live + [
+                    'ObjectReference.object_id' => $visible,
+                    'ObjectReference.referenced_id' => $visible,
+                ],
+                'fields' => [
+                    'ObjectReference.uuid', 'ObjectReference.object_id',
+                    'ObjectReference.referenced_id', 'ObjectReference.relationship_type',
+                ],
+                'recursive' => -1,
+            ]);
+            foreach ($rows as $row) {
+                $reference = $row['ObjectReference'];
+                $references[] = [
+                    'uuid' => $reference['uuid'],
+                    'object_uuid' => $uuidById[$reference['object_id']],
+                    'referenced_uuid' => $uuidById[$reference['referenced_id']],
+                    'relationship_type' => $reference['relationship_type'],
+                ];
+            }
+        }
+        unset($objects[$uuid]);
+        $cards = $this->MispObject->Event->correlatedEventCards($user, [$eventId]);
+        return $this->RestResponse->viewData([
+            'objects' => array_values($objects),
+            'references' => $references,
+            'event' => $cards[$eventId] ?? null,
+            'ui_priorities' => $this->MispObject->ObjectTemplate->uiPrioritiesFor(array_values($objects)) ?: new stdClass(),
+        ], 'json');
     }
 
     public function orphanedObjectDiagnostics()

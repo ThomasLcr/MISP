@@ -355,6 +355,9 @@ class AppController extends Controller
                     }
                 }
                 $this->set('theme', $currentTheme);
+                if ($currentTheme === 'Overmind') {
+                    $this->set('bootstrapTheme', MispTheme::bootstrapTheme($this->Auth->user()));
+                }
                 $availableThemes = MispTheme::getAvailableThemes($currentTheme, (bool)Configure::read('debug'));
                 $this->set('themes', $availableThemes);
 
@@ -533,10 +536,38 @@ class AppController extends Controller
                 $this->set('homepage', array('path' => $homepagePath));
             }
 
+            if ($this->__showsAnalystGraphSlot($user)) {
+                $this->set('intelGraph', ['active' => ClassRegistry::init('Graph')->activeFor($user, false)]);
+            }
+
             if (PHP_MAJOR_VERSION < 8) {
                 $this->Flash->error(__('WARNING: MISP 2.5.x is currently running under PHP 7.x, which is unsupported. Make sure that you upgrade to PHP 8.x as soon as possible.'));
             }
         }
+    }
+
+    /**
+     * Whether this page's navbar carries the analyst graph slot: an Overmind
+     * page with the Bootstrap 5 chrome, for a user who may add to a graph.
+     *
+     * @param array $user
+     * @return bool
+     */
+    private function __showsAnalystGraphSlot(array $user)
+    {
+        if (($this->theme ?? null) !== 'Overmind') {
+            return false;
+        }
+        App::uses('OvermindPages', 'Tools');
+        $controller = $this->request->params['controller'];
+        $action = $this->request->params['action'];
+        if ($this->layout !== 'dashboard' && !OvermindPages::isMigrated($controller, $action)) {
+            return false;
+        }
+        if (OvermindPages::isAuthPage($controller, $action)) {
+            return false;
+        }
+        return $this->ACL->canUserAccess($user, 'analystGraphs', 'addNodes');
     }
 
     /**

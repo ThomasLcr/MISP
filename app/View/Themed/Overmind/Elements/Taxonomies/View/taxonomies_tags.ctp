@@ -12,6 +12,7 @@ if ($taxonomy['enabled']) {
             //'sort' => 'existing_tag.Tag',
             'data_path' => 'existing_tag.Tag',
             'element' => 'tag_name',
+            'uncreated' => true,
             'card_section' => 'tag',
             'display_in' => ['table','card']
         ],
@@ -105,6 +106,7 @@ if ($taxonomy['enabled']) {
             //'sort' => 'existing_tag.Tag',
             'data_path' => 'existing_tag.Tag',
             'element' => 'tag_name',
+            'uncreated' => true,
             'card_section' => 'tag',
             'display_in' => ['table','card']
         ],

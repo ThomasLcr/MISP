@@ -15,15 +15,15 @@ $isPublished  = !empty($evt['published']);
 
 
 $analysisMap = [
-    0 => ['label' => __('Initial'),   'dot' => '#0d6efd'],
-    1 => ['label' => __('Ongoing'),   'dot' => '#fd7e14'],
-    2 => ['label' => __('Completed'), 'dot' => '#198754'],
+    0 => ['label' => __('Initial'),   'dot' => 'var(--misp-tone-blue-solid, #0d6efd)',   'fg' => 'var(--misp-tone-blue-fg, #0d6efd)'],
+    1 => ['label' => __('Ongoing'),   'dot' => 'var(--misp-tone-orange-solid, #fd7e14)', 'fg' => 'var(--misp-tone-orange-fg, #fd7e14)'],
+    2 => ['label' => __('Completed'), 'dot' => 'var(--misp-tone-green-solid, #198754)',  'fg' => 'var(--misp-tone-green-fg, #198754)'],
 ];
 $threatMap = [
-    0 => ['label' => __('Low'),       'color' => '#ffc107'],
-    1 => ['label' => __('Medium'),    'color' => '#fd7e14'],
-    2 => ['label' => __('High'),      'color' => '#dc3545'],
-    3 => ['label' => __('Undefined'), 'color' => '#41464b'],
+    0 => ['label' => __('Low'),       'color' => 'var(--misp-tone-yellow-solid, #ffc107)', 'fg' => 'var(--misp-tone-yellow-fg, #ffc107)'],
+    1 => ['label' => __('Medium'),    'color' => 'var(--misp-tone-orange-solid, #fd7e14)', 'fg' => 'var(--misp-tone-orange-fg, #fd7e14)'],
+    2 => ['label' => __('High'),      'color' => 'var(--misp-tone-red-solid, #dc3545)',    'fg' => 'var(--misp-tone-red-fg, #dc3545)'],
+    3 => ['label' => __('Undefined'), 'color' => 'var(--misp-tone-gray-solid, #41464b)',   'fg' => 'var(--misp-tone-gray-fg, #41464b)'],
 ];
 $analysisLevel = (int)($evt['analysis'] ?? 0);
 // Backend: 1=High, 2=Medium, 3=Low, 4=Undefined -> display index 0=Low..3=Undef
@@ -149,7 +149,7 @@ $stats = [
                         ]); ?>
                         <?php if ($distribution === 4 && !empty($sg['name'])): ?>
                             <span class="d-inline-flex align-items-center gap-1 small">
-                                <span class="misp-icon misp-icon-sharing-group misp-hexagone text-primary"></span>
+                                <span class="misp-icon misp-icon-sharing-group misp-hexagone text-accent"></span>
                                 <?= h($sg['name']) ?>
                             </span>
                         <?php endif; ?>
@@ -191,20 +191,20 @@ $stats = [
                 <div class="text-muted small text-uppercase fw-bold mb-2"><?= __('Analysis') ?></div>
                 <?php $analysisPct = (int)(($analysisLevel + 1) / 3 * 100); ?>
                 <div class="d-flex align-items-center gap-2">
-                    <div class="flex-fill" style="height:4px;border-radius:2px;background:#e9ecef;overflow:hidden;">
+                    <div class="flex-fill" style="height:4px;border-radius:2px;background:var(--misp-line, #e9ecef);overflow:hidden;">
                         <div style="height:100%;width:<?= $analysisPct ?>%;border-radius:2px;background:<?= h($analysis['dot']) ?>;"></div>
                     </div>
-                    <span class="small fw-semibold flex-shrink-0" style="color:<?= h($analysis['dot']) ?>;"><?= h($analysis['label']) ?></span>
+                    <span class="small fw-semibold flex-shrink-0" style="color:<?= h($analysis['fg']) ?>;"><?= h($analysis['label']) ?></span>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="text-muted small text-uppercase fw-bold mb-2"><?= __('Threat Level') ?></div>
                 <?php $threatPct = $threatLevel < 3 ? (int)(($threatLevel + 1) / 3 * 100) : 5; ?>
                 <div class="d-flex align-items-center gap-2">
-                    <div class="flex-fill" style="height:4px;border-radius:2px;background:#e9ecef;overflow:hidden;">
+                    <div class="flex-fill" style="height:4px;border-radius:2px;background:var(--misp-line, #e9ecef);overflow:hidden;">
                         <div style="height:100%;width:<?= $threatPct ?>%;border-radius:2px;background:<?= h($threat['color']) ?>;"></div>
                     </div>
-                    <span class="small fw-semibold flex-shrink-0" style="color:<?= h($threat['color']) ?>;"><?= h($threat['label']) ?></span>
+                    <span class="small fw-semibold flex-shrink-0" style="color:<?= h($threat['fg']) ?>;"><?= h($threat['label']) ?></span>
                 </div>
             </div>
         </div>
@@ -259,7 +259,7 @@ $stats = [
             total: stats.objects.total,
             data:  stats.objects.by_name,
             icon:  'misp-icon misp-icon-object misp-hexagone',
-            color: '#524948',
+            color: 'var(--object, #524948)',
             empty: <?= json_encode(__('No objects')) ?>
         },
         {
@@ -274,10 +274,24 @@ $stats = [
         }
     ];
 
+    var charts = [];
+
+    function cardBackground() {
+        var el = document.getElementById(uid);
+        for (; el && el.nodeType === 1; el = el.parentElement) {
+            var bg = getComputedStyle(el).backgroundColor;
+            if (bg && bg !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(bg)) {
+                return bg;
+            }
+        }
+        return '#fff';
+    }
+
     function render() {
         var row = document.getElementById(uid + '-charts');
         if (!row) { return; }
         row.innerHTML = '';
+        charts = [];
 
         chartDefs.forEach(function (def) {
             var col = document.createElement('div');
@@ -333,11 +347,14 @@ $stats = [
                 if (typeof Chart === 'undefined') { setTimeout(tryChart, 100); return; }
                 var ctx = document.getElementById(canvasId);
                 if (!ctx) { return; }
-                new Chart(ctx, {
+                charts.push(new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: labels,
-                        datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, hoverOffset: 4 }]
+                        datasets: [{
+                            data: values, backgroundColor: colors,
+                            borderColor: cardBackground(), borderWidth: 2, hoverOffset: 4
+                        }]
                     },
                     options: {
                         cutout: '68%',
@@ -350,10 +367,26 @@ $stats = [
                             } } }
                         }
                     }
-                });
+                }));
             }());
         });
     }
+
+    var observer = new MutationObserver(function () {
+        if (!document.getElementById(uid)) {
+            observer.disconnect();
+            return;
+        }
+        var border = cardBackground();
+        charts.forEach(function (chart) {
+            chart.data.datasets[0].borderColor = border;
+            chart.update('none');
+        });
+    });
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-misp-mode'],
+    });
 
     if (document.readyState !== 'loading') { render(); }
     else { document.addEventListener('DOMContentLoaded', render); }

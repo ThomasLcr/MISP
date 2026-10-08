@@ -1,0 +1,21 @@
+/* Pivotick in MISP's colours. Loaded after pivotick.css, whose theme
+   variables are scoped to the same selectors. */
+.pivotick[data-theme],
+.pvt-portal[data-theme] {
+    --pvt-misp-primary: var(--primary, #1892B1);
+    --pvt-theme-primary: var(--pvt-misp-primary);
+    --pvt-selection-color: var(--pvt-misp-primary);
+    --pvt-selection-stroke-color: var(--pvt-misp-primary);
+    --pvt-node-selected-color: var(--pvt-misp-primary);
+    --pvt-badge-color: var(--pvt-misp-primary);
+    /* A theme's body font and size never reach the graph and its panels. */
+    font-family: system-ui, sans-serif;
+    font-size: 1rem;
+}
+
+/* A stand-in for edges into a closed object dashes like the edges it
+   stands for. Kept at pivotick's own specificity so its forecast dash
+   still wins. */
+.pvt-edge-synthetic path.dashed {
+    stroke-dasharray: var(--pvt-edge-stroke-dasharray);
+}

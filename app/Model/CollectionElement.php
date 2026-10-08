@@ -17,10 +17,28 @@ class CollectionElement extends AppModel
         )
     );
 
-    // Make sure you also update the validation for element_type to include anything you add here.
     public $valid_types = [
         'Event',
-        'GalaxyCluster'
+        'GalaxyCluster',
+        'Attribute',
+        'Object',
+        'Value'
+    ];
+
+    /**
+     * A Value element points at no row: it carries the literal, and its
+     * element_uuid is derived from it (Value::uuidFor), so the
+     * (element_uuid, collection_id) unique key keeps a value in a collection
+     * once.
+     */
+    const VALUE_MAX_BYTES = 1024;
+
+    /**
+     * Model behind each pointer type, for those whose class name differs.
+     */
+    private $typeModels = [
+        'Attribute' => 'MispAttribute',
+        'Object' => 'MispObject',
     ];
 
     public $validate = [
@@ -43,11 +61,16 @@ class CollectionElement extends AppModel
         ],
         'element_type' => [
             'element_type' => [
-                'rule' => ['inList', ['Event', 'GalaxyCluster']],
+                'rule' => ['validElementType'],
                 'message' => 'Invalid object type.'
             ]
         ]
     ];
+
+    public function validElementType($check)
+    {
+        return in_array(reset($check), $this->valid_types, true);
+    }
 
     /**
      * When true, element saves/deletes do NOT bump the parent Collection's
@@ -79,7 +102,164 @@ class CollectionElement extends AppModel
         ) {
             $this->data['CollectionElement']['element_type'] = $this->deduceType($this->data['CollectionElement']['element_uuid']);
         }
+        $element = &$this->data['CollectionElement'];
+        if (($element['element_type'] ?? null) === 'Value') {
+            $value = isset($element['value']) && is_scalar($element['value'])
+                ? trim((string)$element['value'])
+                : '';
+            if ($value === '') {
+                $this->invalidate('value', __('A value element needs a value.'));
+            } elseif (strlen($value) > self::VALUE_MAX_BYTES) {
+                $this->invalidate('value', __('A value element holds at most %s bytes.', self::VALUE_MAX_BYTES));
+            } else {
+                App::uses('Value', 'Model');
+                $element['value'] = $value;
+                $element['element_uuid'] = Value::uuidFor($value);
+            }
+        } elseif (isset($element['element_type'])) {
+            $element['value'] = null;
+        }
         return true;
+    }
+
+    /**
+     * The element UUIDs of one type that $user may read. A Value element is
+     * authored content of the collection, so every one is readable to whoever
+     * sees the collection.
+     *
+     * @param array $user
+     * @param string $type
+     * @param array $uuids
+     * @return array
+     */
+    public function readableUuids(array $user, $type, array $uuids)
+    {
+        $uuids = array_values(array_unique($uuids));
+        if (empty($uuids) || $type === 'Value') {
+            return $uuids;
+        }
+        switch ($type) {
+            case 'Event':
+                $rows = ClassRegistry::init('Event')->fetchSimpleEvents($user, [
+                    'conditions' => ['Event.uuid' => $uuids]
+                ]);
+                return Hash::extract($rows, '{n}.Event.uuid');
+            case 'GalaxyCluster':
+                $rows = ClassRegistry::init('GalaxyCluster')->fetchGalaxyClusters($user, [
+                    'conditions' => ['GalaxyCluster.uuid' => $uuids],
+                    'fields' => ['GalaxyCluster.uuid'],
+                    'contain' => []
+                ]);
+                return Hash::extract($rows, '{n}.GalaxyCluster.uuid');
+            case 'Attribute':
+                $rows = ClassRegistry::init('MispAttribute')->fetchAttributesSimple($user, [
+                    'conditions' => ['Attribute.uuid' => $uuids, 'Attribute.deleted' => 0],
+                    'fields' => ['Attribute.uuid']
+                ]);
+                return Hash::extract($rows, '{n}.Attribute.uuid');
+            case 'Object':
+                $rows = ClassRegistry::init('MispObject')->fetchObjectSimple($user, [
+                    'conditions' => ['Object.uuid' => $uuids, 'Object.deleted' => 0],
+                    'fields' => ['Object.uuid']
+                ]);
+                return Hash::extract($rows, '{n}.Object.uuid');
+        }
+        return [];
+    }
+
+    /**
+     * Attach to each element the record it points at, as $user sees it.
+     * Elements whose record the user cannot read are returned bare.
+     *
+     * @param array $user
+     * @param array $elements CollectionElement rows, unwrapped
+     * @return array
+     */
+    public function attachTargets(array $user, array $elements)
+    {
+        $uuidsByType = [];
+        foreach ($elements as $element) {
+            if (!empty($element['element_uuid'])) {
+                $uuidsByType[$element['element_type'] ?? ''][] = $element['element_uuid'];
+            }
+        }
+        $targets = [];
+        foreach ($uuidsByType as $type => $uuids) {
+            $targets[$type] = $this->fetchTargets($user, $type, array_values(array_unique($uuids)));
+        }
+        foreach ($elements as $k => $element) {
+            $type = $element['element_type'] ?? '';
+            $uuid = $element['element_uuid'] ?? '';
+            if (isset($targets[$type][$uuid])) {
+                $elements[$k][$type] = $targets[$type][$uuid];
+            }
+        }
+        return $elements;
+    }
+
+    /**
+     * @param array $user
+     * @param string $type
+     * @param array $uuids
+     * @return array uuid => what the view shows of the record
+     */
+    private function fetchTargets(array $user, $type, array $uuids)
+    {
+        $byUuid = [];
+        switch ($type) {
+            case 'Event':
+                $rows = ClassRegistry::init('Event')->fetchSimpleEvents($user, [
+                    'conditions' => ['Event.uuid' => $uuids]
+                ]);
+                foreach ($rows as $row) {
+                    $byUuid[$row['Event']['uuid']] = [
+                        'id' => $row['Event']['id'],
+                        'info' => $row['Event']['info'],
+                    ];
+                }
+                break;
+            case 'GalaxyCluster':
+                $GalaxyCluster = ClassRegistry::init('GalaxyCluster');
+                $rows = $GalaxyCluster->fetchGalaxyClusters($user, [
+                    'conditions' => ['GalaxyCluster.uuid' => $uuids]
+                ]);
+                foreach ($rows as $row) {
+                    $arranged = $GalaxyCluster->arrangeData($row);
+                    $byUuid[$row['GalaxyCluster']['uuid']] = [$arranged['GalaxyCluster']];
+                }
+                break;
+            case 'Attribute':
+                $rows = ClassRegistry::init('MispAttribute')->fetchAttributesSimple($user, [
+                    'conditions' => ['Attribute.uuid' => $uuids, 'Attribute.deleted' => 0],
+                    'fields' => [
+                        'Attribute.id', 'Attribute.uuid', 'Attribute.type',
+                        'Attribute.category', 'Attribute.value', 'Attribute.event_id',
+                        'Attribute.object_id', 'Event.id', 'Event.info',
+                    ]
+                ]);
+                foreach ($rows as $row) {
+                    $byUuid[$row['Attribute']['uuid']] = $row['Attribute'] + [
+                        'Event' => $row['Event'],
+                    ];
+                }
+                break;
+            case 'Object':
+                $rows = ClassRegistry::init('MispObject')->fetchObjectSimple($user, [
+                    'conditions' => ['Object.uuid' => $uuids, 'Object.deleted' => 0],
+                    'fields' => [
+                        'Object.id', 'Object.uuid', 'Object.name',
+                        'Object.meta-category', 'Object.event_id',
+                    ],
+                    'contain' => ['Event' => ['fields' => ['id', 'info']]]
+                ]);
+                foreach ($rows as $row) {
+                    $byUuid[$row['Object']['uuid']] = $row['Object'] + [
+                        'Event' => $row['Event'],
+                    ];
+                }
+                break;
+        }
+        return $byUuid;
     }
 
     public function afterSave($created, $options = array())
@@ -133,9 +313,13 @@ class CollectionElement extends AppModel
     public function deduceType(string $uuid)
     {
         foreach ($this->valid_types as $valid_type) {
-            $this->{$valid_type} = ClassRegistry::init($valid_type);
-            $result = $this->$valid_type->find('first', [
-                'conditions' => [$valid_type.'.uuid' => $uuid],
+            if ($valid_type === 'Value') {
+                continue;
+            }
+            $model = ClassRegistry::init($this->typeModels[$valid_type] ?? $valid_type);
+            $result = $model->find('first', [
+                'conditions' => [$model->alias . '.uuid' => $uuid],
+                'fields' => [$model->alias . '.id'],
                 'recursive' => -1
             ]);
             if (!empty($result)) {
@@ -181,6 +365,7 @@ class CollectionElement extends AppModel
                             'uuid' => $element['uuid'],
                             'element_uuid' => $element['element_uuid'] ?? null,
                             'element_type' => $element['element_type'] ?? null,
+                            'value' => $element['value'] ?? null,
                             'description' => $element['description'] ?? null,
                             'collection_id' => $data['Collection']['id']
                         ]
