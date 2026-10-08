@@ -9423,6 +9423,8 @@ class Event extends AppModel
                 }
                 $objects[] = $tmp_object;
             }
+            // Read in template order
+            $this->Object->sortAttributesByTemplate($objects);
             $event['Object'] = $objects;
         }
         if (!empty($result['results']['EventReport'])) {
