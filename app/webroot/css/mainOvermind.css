@@ -20,6 +20,7 @@
     --bs-link-color-rgb: 24, 146, 177;
 }
 
+
 .pagination {
     --bs-pagination-active-bg: var(--primary);
     --bs-pagination-active-border-color: var(--primary);
@@ -519,7 +520,7 @@ body[data-controller="users"][data-action="change_pw"] {
 .ov-modal-index .table-scroll {
     height: auto;
     max-height: 60vh;
-}
+}W
 
 .table-scroll td {
     overflow-wrap:break-word;
