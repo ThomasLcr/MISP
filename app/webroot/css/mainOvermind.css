@@ -5060,3 +5060,10 @@ tr.evt-extension-row td:first-child {
 @keyframes ov-debug-pulse {
     50% { filter: brightness(.8); }
 }
+
+/* Freetext import review: the editor opens as a row under the one it edits,
+   so it needs the accent to read as attached rather than as another entry. */
+.ft-editor > td {
+    border-left: 3px solid var(--event);
+    background: var(--bs-tertiary-bg);
+}
