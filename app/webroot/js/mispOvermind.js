@@ -8521,7 +8521,7 @@ function initObjectAddForm(container, payloadEl) {
             searchField: ['label', 'context', 'uuid'],
             options: initial,
             create: false,
-            placeholder: 'Search the event for an object or attribute',
+            placeholder: 'Search the event by name, value or uuid',
             load: function (query, callback) {
                 fetch(data.relationshipTargetsUrl + '?searchTerm=' + encodeURIComponent(query), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -8531,14 +8531,21 @@ function initObjectAddForm(container, payloadEl) {
                     .catch(function () { callback(); });
             },
             render: {
+                /* Objects often share a name: the uuid is what tells them apart. */
                 option: function (item, escape) {
                     return '<div class="py-1">'
                         + '<span class="badge bg-secondary me-1">' + escape(item.kind) + '</span>'
                         + escape(item.label)
                         + '<div class="text-muted small">' + escape(item.context) + '</div>'
+                        + '<div class="text-muted small font-monospace text-truncate">' + escape(item.uuid) + '</div>'
                         + '</div>';
                 },
-                item: function (item, escape) { return '<div>' + escape(item.label) + '</div>'; }
+                item: function (item, escape) {
+                    return '<div class="d-flex align-items-center gap-2 text-truncate">'
+                        + '<span>' + escape(item.label) + '</span>'
+                        + '<span class="text-muted small font-monospace">' + escape(item.uuid) + '</span>'
+                        + '</div>';
+                }
             },
             onChange: syncRelAddBtn
         });
