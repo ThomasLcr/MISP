@@ -90,8 +90,8 @@
 .dk-state.is-unpub::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; margin-right: 5px; vertical-align: 1px; }
 .dk-state.is-pending { color: var(--dk-amber-ink); background: var(--dk-amber-bg); border: 1px solid var(--dk-amber-line); border-radius: 999px; padding: 0 7px 0 6px; line-height: 16px; }
 .dk-state.is-pending::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--dk-amber-line); margin-right: 5px; vertical-align: 1px; }
-.dk-id { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--dk-ink2); }
-.dk-menu { position: relative; z-index: 3; }
+.dk-id { flex: none; font-variant-numeric: tabular-nums; color: var(--dk-ink2); }
+.dk-menu { margin-left: auto; position: relative; z-index: 3; }
 .dk-menu .checkbox-actions-wrapper { margin: 0; background: none; border-radius: 0; }
 .dk-menu .row-menu-toggle {
     width: 22px; height: 20px; padding: 0 !important; border: 0; border-radius: 5px;
