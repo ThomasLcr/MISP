@@ -122,10 +122,6 @@
 .te-ctx .dk-chip.is-tid, .te-ctx .dk-chip.is-mit { padding: 0 5px; }
 .te-ctx .dk-chip.is-tag { padding-left: 5px; }
 .te-ctx .dk-chip.dk-pref { padding-right: 10px; }
-.te-tn {
-    flex: none; min-width: 1.6em; padding-right: 2px; text-align: right;
-    font-size: .74rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--dk-gx-ink); cursor: default;
-}
 .te-ctx .dk-more { flex: none; position: relative; z-index: 2; padding: 0 3px; }
 .te-index .te-table tbody tr.te-row > td.te-lane.is-popped { background-color: color-mix(in srgb, var(--dk-accent) 7%, var(--ix-bg)); }
 
