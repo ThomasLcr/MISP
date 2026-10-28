@@ -184,7 +184,7 @@ $reportSub = function (array $row) use ($extensionEvents, $data, $eventId) {
                 </div>
                 <div class="min-w-0 me-auto">
                     <div class="eo-card-title"><?= __('Event graph') ?></div>
-                    <div class="eo-card-sub text-truncate" data-eo-graph-sub>&nbsp;</div>
+                    <div class="eo-card-sub text-truncate" data-eo-graph-sub></div>
                 </div>
                 <div class="eo-switch" role="group" aria-label="<?= h(__('Graph source')) ?>">
                     <div class="dropdown d-inline-flex">
