@@ -123,6 +123,7 @@
 }
 .ifp-panel-body { padding: 14px 16px 16px; }
 .ifp-quicks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.ifp-panel-body > .ifp-quicks:last-child { margin-bottom: 0; }
 .ifp-quick {
     display: inline-flex; align-items: center; gap: 9px;
     padding: 5px 12px 5px 10px; font-size: .85rem; color: var(--bs-body-color); text-decoration: none;
@@ -358,6 +359,13 @@
 }
 .ifp-chip-x:hover, .ifp-chip-x:focus-visible { background: color-mix(in srgb, var(--bs-primary) 22%, transparent); color: inherit; }
 .ifp-clear { margin-left: 4px; font-size: .78rem; }
+/* The same controls as buttons, where the filter runs client-side (server settings) */
+button.ifp-quick { font: inherit; font-size: .85rem; text-align: left; }
+button.ifp-clear {
+    appearance: none; padding: 0; border: 0; background: none;
+    color: var(--bs-link-color); text-decoration: underline;
+}
+button.ifp-clear:hover { color: var(--bs-link-hover-color); }
 
 /* Stat cards */
 .ifp-stats {
