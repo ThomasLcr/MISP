@@ -32,67 +32,67 @@
     display: none;
 }
 
+/* The doors are underlined tabs across the top of the prompt's card. */
 .vsr-doors {
     flex: 1 0 100%;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 14px;
+    gap: 0 14px;
     min-width: 0;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .vsr-seg {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
     gap: 2px;
-    padding: 2px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: calc(var(--bs-border-radius) + 2px);
-    background: var(--bs-tertiary-bg);
 }
 
 .vsr-tab {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 4px 13px 4px 11px;
+    margin-bottom: -1px;
+    padding: 11px 10px 9px;
     border: 0;
-    border-radius: var(--bs-border-radius);
+    border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--bs-secondary-color);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 500;
-    line-height: 1.5;
+    line-height: 1.4;
     cursor: pointer;
-    transition: background-color 0.12s ease, color 0.12s ease;
+    transition: border-color 0.12s ease, color 0.12s ease;
 }
 
 .vsr-tab i {
-    font-size: 0.74rem;
+    font-size: 0.8rem;
     opacity: 0.85;
 }
 
 .vsr-tab:hover {
     color: var(--bs-body-color);
-    background: color-mix(in srgb, var(--vsr-accent) 8%, transparent);
+    border-bottom-color: var(--bs-border-color);
 }
 
 .vsr-tab[aria-selected="true"] {
-    background: var(--bs-body-bg);
     color: var(--vsr-accent);
+    border-bottom-color: var(--vsr-accent);
     font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12),
-        inset 0 0 0 1px color-mix(in srgb, var(--vsr-accent) 40%, transparent);
 }
 
 .vsr-tab:focus-visible {
     outline: 2px solid var(--vsr-accent);
-    outline-offset: 1px;
+    outline-offset: -2px;
 }
 
 .vsr-doorsay {
     flex: 1 1 320px;
     min-width: 0;
     margin: 0;
+    padding: 8px 0;
     font-size: 0.78rem;
     line-height: 1.45;
     color: var(--bs-secondary-color);
@@ -133,6 +133,7 @@
 .vsr-field {
     flex: 1 1 260px;
     min-width: 0;
+    padding: 14px 0 14px 14px;
 }
 
 .vsr-box {
@@ -277,6 +278,7 @@
     flex: 0 0 auto;
     display: flex;
     align-items: center;
+    padding: 14px 14px 14px 12px;
 }
 
 .vsr-go {
@@ -357,31 +359,112 @@
 }
 
 /* ------------------------------------------------------------------
- * The Search door's invitation
+ * The Search door's invitation: examples, and how matching works for
+ * whoever opens it
  * ------------------------------------------------------------------ */
 
 .vsr-invite {
-    padding: 16px 14px 18px;
+    padding: 12px 14px;
 }
 
-.vsr-invite__title {
-    margin: 0 0 3px;
-    font-size: 0.95rem;
+.vsr-tries {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.vsr-tries__lead {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+
+.vsr-try {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px;
+    border: 1px solid color-mix(in srgb, var(--vsr-accent) 45%, transparent);
+    border-radius: var(--bs-border-radius-sm);
+    background: transparent;
+    color: var(--vsr-accent);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.vsr-try code {
+    padding: 0;
+    background: none;
+    color: inherit;
     font-weight: 600;
 }
 
-.vsr-invite__lead,
-.vsr-invite__foot {
-    margin: 0;
-    max-width: 90ch;
+.vsr-try:hover {
+    background: var(--vsr-tint-strong);
+}
+
+.vsr-try:focus-visible {
+    outline: 2px solid var(--vsr-accent);
+    outline-offset: 2px;
+}
+
+.vsr-how {
+    margin-top: 10px;
     font-size: 0.8rem;
+}
+
+.vsr-how > summary {
+    display: inline-block;
+    color: var(--bs-link-color);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vsr-how > summary:focus-visible {
+    outline: 2px solid var(--vsr-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+.vsr-ways {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.vsr-way {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+    max-width: 100ch;
     line-height: 1.5;
     color: var(--bs-secondary-color);
 }
 
+.vsr-way > .vsr-badge {
+    justify-self: start;
+}
+
+.vsr-way b {
+    color: var(--bs-body-color);
+    font-weight: 600;
+}
+
+.vsr-way code {
+    white-space: nowrap;
+    word-break: normal;
+}
+
 .vsr-invite__foot {
-    margin-top: 10px;
+    margin: 8px 0 0;
+    max-width: 90ch;
     font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--bs-secondary-color);
 }
 
 .vsr-invite code,
@@ -394,90 +477,6 @@
     color: var(--bs-body-color);
     font-size: 0.76rem;
     word-break: break-all;
-}
-
-.vsr-ways {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin: 12px 0 0;
-    padding: 0;
-    list-style: none;
-}
-
-.vsr-way {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    min-width: 0;
-    padding: 12px 13px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius);
-    background: var(--bs-body-bg);
-}
-
-.vsr-way__lead {
-    font-size: 0.84rem;
-    font-weight: 600;
-}
-
-.vsr-way__body code {
-    white-space: nowrap;
-    word-break: normal;
-}
-
-.vsr-way__body {
-    flex: 1 1 auto;
-    font-size: 0.76rem;
-    line-height: 1.5;
-    color: var(--bs-secondary-color);
-}
-
-.vsr-try {
-    margin-top: 2px;
-    padding: 3px 8px;
-    border: 1px solid color-mix(in srgb, var(--vsr-accent) 55%, transparent);
-    border-radius: var(--bs-border-radius-sm);
-    background: transparent;
-    color: var(--vsr-accent);
-    font-size: 0.74rem;
-    cursor: pointer;
-}
-
-.vsr-try code {
-    padding: 0;
-    background: none;
-    color: inherit;
-    font-weight: 600;
-}
-
-.vsr-try:hover {
-    background: var(--vsr-accent);
-    color: #fff;
-}
-
-.vsr-try:focus-visible {
-    outline: 2px solid var(--vsr-accent);
-    outline-offset: 2px;
-}
-
-@media (max-width: 1400px) {
-    .vsr-ways {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@container (max-width: 760px) {
-    .vsr-ways {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
-@media (max-width: 900px) {
-    .vsr-ways {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }
 
 /* ------------------------------------------------------------------

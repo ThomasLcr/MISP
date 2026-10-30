@@ -36,6 +36,7 @@
         var ASSESS = base + '/values/assess';
         var box = form.querySelector('#ValueValue');
         var invite = document.querySelector('[data-vi-invite]');
+        var page = form.closest('.vi-page');
 
         /* A translated sentence with its placeholders filled by markup. */
         function T(text) {
@@ -101,12 +102,12 @@
             + '<div class="vsr-seg" role="tablist" aria-label="' + esc(L.doors) + '">'
             + '<button type="button" class="vsr-tab" role="tab" id="vsr-tab-lookup"'
             + ' data-vsr-door="lookup" aria-selected="true">'
-            + '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i>' + esc(L.tabLookup) + '</button>'
+            + '<i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i>' + esc(L.tabLookupFull) + '</button>'
             + '<button type="button" class="vsr-tab" role="tab" id="vsr-tab-search"'
             + ' data-vsr-door="search" aria-selected="false" tabindex="-1">'
-            + '<i class="fas fa-magnifying-glass" aria-hidden="true"></i>' + esc(L.tabSearch) + '</button>'
+            + '<i class="fas fa-magnifying-glass" aria-hidden="true"></i>' + esc(L.tabSearchFull) + '</button>'
             + '</div>'
-            + '<p class="vsr-doorsay" data-vsr-say aria-live="polite"></p>'
+            + '<p class="vsr-doorsay" data-vsr-say aria-live="polite" hidden></p>'
             + '</div>'
         );
         var field = el(
@@ -170,14 +171,10 @@
             return '<button type="button" class="vsr-link" data-vsr-to="' + to + '">' + esc(text) + '</button>';
         }
 
+        // The tabs name their doors; the line under them is only for a notice
         function paintSay() {
-            if (notice) {
-                say.innerHTML = notice;
-            } else if (door === 'lookup') {
-                say.innerHTML = T(L.sayLookup, '<b>' + esc(L.tabLookup) + '</b>', link('search', L.sayLookupLink));
-            } else {
-                say.innerHTML = T(L.saySearch, '<b>' + esc(L.tabSearch) + '</b>', link('lookup', L.saySearchLink));
-            }
+            say.innerHTML = notice || '';
+            say.hidden = !notice;
         }
 
         /* The door and the question go into the history entry, never the URL. */
@@ -228,6 +225,9 @@
                 box.value = q.value.trim();
             }
             form.classList.toggle('vsr-on-search', to === 'search');
+            if (page) {
+                page.classList.toggle('vi-searching', to === 'search');
+            }
             tabs.forEach(function (tab) {
                 var on = tab.getAttribute('data-vsr-door') === to;
                 tab.setAttribute('aria-selected', String(on));
@@ -370,32 +370,41 @@
             q.focus();
         }
 
-        function way(mode, example, lead, body, onAnywhere) {
-            return '<li class="vsr-way">' + badge(mode)
-                + '<span class="vsr-way__lead">' + esc(lead) + '</span>'
-                + '<span class="vsr-way__body">' + body + '</span>'
-                + '<button type="button" class="vsr-try" data-vsr-try="' + esc(example) + '"'
+        function tryOne(mode, example, onAnywhere) {
+            return '<button type="button" class="vsr-try" data-vsr-try="' + esc(example) + '"'
                 + (onAnywhere ? ' data-vsr-try-anywhere' : '') + '>'
-                + T(L.try, code(example)) + '</button></li>';
+                + code(example) + badge(mode) + '</button>';
         }
 
+        function way(mode, lead, body) {
+            return '<li class="vsr-way">' + badge(mode)
+                + '<span class="vsr-way__text"><b>' + esc(lead) + '.</b> ' + body + '</span></li>';
+        }
+
+        // Examples first; how the matching works only for whoever asks
         function searchInvite() {
             return el(
                 '<div class="vsr-invite">'
-                + '<h2 class="vsr-invite__title">' + esc(L.inviteTitle) + '</h2>'
-                + '<p class="vsr-invite__lead">' + esc(L.inviteLead) + '</p>'
+                + '<div class="vsr-tries"><span class="vsr-tries__lead">' + esc(L.tryLead) + '</span>'
+                + tryOne('words', 'github')
+                + tryOne('prefix', '8.8')
+                + tryOne('block', '8.8.8.0/24')
+                + tryOne('anywhere', 'verifypaypal', true)
+                + '</div>'
+                + '<details class="vsr-how"><summary>' + esc(L.how) + '</summary>'
                 + '<ul class="vsr-ways">'
-                + way('words', 'github', L.wayWordsLead,
+                + way('words', L.wayWordsLead,
                     T(L.wayWordsBody, code('github.com'), code('api.github.com'), code('mygithub.com')))
-                + way('prefix', '8.8', L.wayPrefixLead,
+                + way('prefix', L.wayPrefixLead,
                     T(L.wayPrefixBody, code('8.8.8.8'), code('8.8.4.4')))
-                + way('block', '8.8.8.0/24', L.wayBlockLead, esc(L.wayBlockBody))
-                + way('anywhere', 'verifypaypal', L.wayAnywhereLead,
+                + way('block', L.wayBlockLead, esc(L.wayBlockBody))
+                + way('anywhere', L.wayAnywhereLead,
                     T(L.wayAnywhereBody, '<b>' + esc(L.anywhere) + '</b>', code('verifypaypal'),
-                        code('theverifypaypal.com')), true)
+                        code('theverifypaypal.com')))
                 + '</ul>'
                 + '<p class="vsr-invite__foot">'
                 + T(L.inviteFoot, code('hxxp://'), code('1.2.3[.]4')) + '</p>'
+                + '</details>'
                 + '</div>'
             );
         }

@@ -16,26 +16,15 @@
 
 
 /* ==================================================================
- * The page and its one card
+ * The page: a main column and a rail
+ * ------------------------------------------------------------------
+ * Bootstrap's own `col-lg-9` / `col-lg-3`, as the Analyst Profile view
+ * lays out its rail, so the rail drops under the main column below
+ * 992px without a rule here.
  * ================================================================== */
 
-/*
- * A flex column purely so the narrow rule below can reorder it. The
- * default order is the source order, so nothing changes on a wide
- * screen.
- */
 .vi-page {
-    display: flex;
-    flex-direction: column;
-    padding: 0 12px 24px;
-}
-
-/*
- * The tile row is the first thing under the page header, and the
- * header supplies no bottom margin of its own.
- */
-.vi-page > .vi-tiles:first-child {
-    margin-top: 12px;
+    padding: 12px 12px 24px;
 }
 
 /*
@@ -50,54 +39,129 @@
     display: none !important;
 }
 
+.vi-main {
+    min-width: 0;
+}
+
 /*
- * Overmind's card: the translucent border, the theme radius and the
- * small shadow every `.card.shadow-sm` on the other index pages has.
+ * Whatever the region under the box holds is a card of its own: a
+ * worklist, an answer, the search's invitation or its results. The
+ * empty region's marker is hidden, so an untouched page shows nothing
+ * between the box and the recent values.
  */
-.vi-app {
+.vi-out > :not(.vi-invite) {
+    margin-top: 1rem;
     background: var(--bs-body-bg);
     color: var(--bs-body-color);
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--bs-border-radius);
     box-shadow: var(--bs-box-shadow-sm);
+}
+
+/* The rail stays in view while a long list scrolls past it. */
+@media (min-width: 992px) {
+    .vi-side {
+        position: sticky;
+        top: .5rem;
+        align-self: flex-start;
+        max-height: calc(100vh - 1rem);
+        overflow-y: auto;
+    }
+}
+
+/*
+ * A batch's cards take the top of the rail and the instance figures
+ * step aside; on the Search tab the batch is put away, so the rail goes
+ * back to how the page arrived.
+ */
+.vi-page:not(.vi-searching) .vi-side.is-working .vi-side-instance,
+.vi-page.vi-searching .vi-side-work {
+    display: none;
+}
+
+.vi-work:not(.is-live) .vi-work__side {
+    display: none;
+}
+
+
+/* ------------------------------------------------------------------
+ * Rail cards: an icon, a title, a body
+ * ------------------------------------------------------------------ */
+
+.vi-rcard {
     overflow: hidden;
+}
+
+.vi-side .vi-rcard {
+    margin-bottom: 1rem;
+}
+
+.vi-rcard-h {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.vi-rcard-ico {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: .5rem;
+    background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+    color: var(--bs-primary);
+    font-size: .85rem;
+}
+
+.vi-rcard-t {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.vi-rcard-sub {
+    margin-left: auto;
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+}
+
+.vi-rcard-b {
+    padding: .75rem 1rem 1rem;
 }
 
 
 /* ==================================================================
- * The conditions strip
+ * The Assessments card
  * ------------------------------------------------------------------
- * One line at the head of the card saying under what rules this
- * session is worked. It shares the prompt's ground and is separated
- * from it by a rule, so the two read as one head rather than as a
- * banner over a control — what the strip says is a property of the
- * box's answers, not a notice about the page.
- *
- * A flex row with a wide column gap: phases 8 and 9 put a second and
- * a third occupant here, and on a narrow card each takes its own line
- * without any of them being given a width.
+ * Whose thresholds decide an assessment, and the method note under
+ * the link to them.
  * ================================================================== */
 
 .vi-cond {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 22px;
-    padding: 9px 14px;
-    background: var(--bs-tertiary-bg);
-    border-bottom: 1px solid var(--bs-border-color);
-    font-size: 0.78rem;
+    font-size: .8125rem;
     line-height: 1.5;
     color: var(--bs-secondary-color);
 }
 
-/*
- * The name is the one word in the sentence a reader looks for, so it
- * takes the body colour while the sentence around it stays quiet.
- */
-.vi-cond b {
+.vi-cond p {
+    margin: 0 0 .35rem;
+}
+
+.vi-cond__name b {
     color: var(--bs-body-color);
     font-weight: 600;
+}
+
+.vi-cond__links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .35rem 1rem;
+    margin-top: .5rem;
 }
 
 /*
@@ -115,8 +179,7 @@
 /*
  * Underlined by a border rather than by `text-decoration`, so the rule
  * sits clear of the descenders and thickens on hover instead of
- * appearing there — the link is part of a sentence and should not
- * shout across it.
+ * appearing there.
  */
 .vi-condlink {
     color: var(--bs-link-color);
@@ -141,11 +204,8 @@
 /* ==================================================================
  * The method note
  * ------------------------------------------------------------------
- * The strip's last occupant, and the only one that is not a sentence.
- * Closed it is one quiet line at the end of the strip's first row;
- * open it takes a row of its own, because a table and two paragraphs
- * are a block and a block sharing a line with a sentence would squeeze
- * the sentence into a column.
+ * The Assessments card's last occupant. Closed it is one quiet line
+ * beside the thresholds link; open it takes a row of its own.
  *
  * `flex: 1 0 100%` is what does that, and it is on `[open]` rather
  * than always: a note that reserved its own row while shut would cost
@@ -207,21 +267,13 @@
 }
 
 /*
- * Separated from the summary by a rule rather than by a border round
- * the whole note: the note is part of the strip and a bordered card
- * inside a tinted band reads as a panel that failed to be placed.
+ * The card's ink is quiet; two paragraphs somebody opened in order to
+ * read them take the body colour back.
  */
 .vi-note__body {
     margin-top: 9px;
     padding-top: 9px;
     border-top: 1px solid var(--bs-border-color);
-    /*
-     * The strip's ink is a sentence's — quiet, because the sentence is
-     * a condition rather than something to read. Two paragraphs
-     * somebody opened in order to read them are not that, so the note
-     * takes the body colour back and hands the quiet one to the
-     * questions, which is where the hierarchy belongs.
-     */
     color: var(--bs-body-color);
 }
 
@@ -241,9 +293,8 @@
 }
 
 /*
- * The axes. Two columns, the axis and everything said about it, so a
- * narrow card stacks the question over the vocabulary instead of
- * squeezing three columns none of which may wrap mid-chip.
+ * The axes, each name over its question and vocabulary: the rail is
+ * too narrow for the name to keep a column of its own.
  */
 .vi-axes {
     width: 100%;
@@ -251,27 +302,24 @@
     margin: 0 0 10px;
 }
 
-.vi-axes th,
-.vi-axes td {
-    text-align: left;
-    padding: 6px 10px 6px 0;
+.vi-axes tr {
+    display: block;
+    padding: 6px 0;
     border-bottom: 1px solid var(--bs-border-color);
-    vertical-align: baseline;
 }
 
-.vi-axes tr:last-child th,
-.vi-axes tr:last-child td {
+.vi-axes tr:last-child {
     border-bottom: 0;
 }
 
-/*
- * `width: 1%` with `nowrap` is the table idiom for *as narrow as the
- * word*: the axis names are three fixed strings and every pixel the
- * column takes beyond them comes off the vocabulary.
- */
+.vi-axes th,
+.vi-axes td {
+    display: block;
+    padding: 0;
+    text-align: left;
+}
+
 .vi-axes th {
-    width: 1%;
-    white-space: nowrap;
     font-weight: 600;
     color: var(--bs-body-color);
 }
@@ -315,25 +363,29 @@
 /* ==================================================================
  * The prompt
  * ------------------------------------------------------------------
- * A field and a verb on one line, the field growing and the verb
- * keeping its width. Both are Bootstrap's own `form-control` and
- * `btn-primary`, so the box looks like every other search box in
- * Overmind; this block only lays them out.
+ * The main column's first card: the Look up | Search tabs across its
+ * top (value-index-search.js puts them there), the box, and under it
+ * one line with the extraction switch, the counter and the verb. The
+ * box and the verb are Bootstrap's own `form-control` and
+ * `btn-primary`; this block only lays them out.
  * ================================================================== */
 
 .vi-prompt {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 10px 12px;
     margin: 0;
-    padding: 14px;
-    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--bs-border-radius);
+    box-shadow: var(--bs-box-shadow-sm);
 }
 
 .vi-prompt__field {
-    flex: 1 1 260px;
+    flex: 1 0 100%;
     min-width: 0;
+    padding: 14px 14px 0;
 }
 
 /* Values are read character by character, so the box is monospace. */
@@ -355,8 +407,8 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    margin: 7px 0 1px;
-    font-size: 0.76rem;
+    margin: 0;
+    font-size: 0.8rem;
     line-height: 1.4;
     cursor: pointer;
 }
@@ -373,16 +425,30 @@
     font-weight: 500;
 }
 
-.vi-mode__why {
+.vi-hint {
+    font-size: 0.76rem;
     color: var(--bs-secondary-color);
 }
 
+.vi-hint code {
+    padding: 1px 4px;
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    font-size: 0.72rem;
+}
+
+.vi-grow {
+    flex: 1 1 auto;
+}
+
 .vi-prompt__side {
-    flex: 0 0 auto;
+    flex: 1 0 100%;
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px 14px;
     align-items: center;
-    padding-top: 4px;
+    padding: 10px 14px 14px;
 }
 
 .vi-run {
@@ -449,69 +515,6 @@
 
 
 /* ==================================================================
- * The invitation
- * ------------------------------------------------------------------
- * What the empty page says. It is one heading and one paragraph
- * because a new instance has nothing else true to show: the other
- * blocks are absent until they have something to say, which is what
- * keeps a fresh install from reading as four broken panels.
- * ================================================================== */
-
-.vi-invite {
-    padding: 16px 14px 18px;
-}
-
-/*
- * The empty page's help text, set as a callout so it reads as guidance
- * about the box rather than as content of the page.
- */
-.vi-tip {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    max-width: 78ch;
-    padding: 12px 14px;
-    border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
-    border-left: 3px solid var(--primary);
-    border-radius: var(--bs-border-radius);
-    background: color-mix(in srgb, var(--primary) 6%, var(--bs-body-bg));
-}
-
-.vi-tip__icon {
-    flex: none;
-    margin-top: 2px;
-    font-size: 1rem;
-    color: var(--primary);
-}
-
-.vi-tip__title {
-    margin: 0 0 4px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    line-height: 1.3;
-}
-
-.vi-tip p {
-    margin: 0 0 3px;
-    color: var(--bs-secondary-color);
-    font-size: 0.82rem;
-    line-height: 1.55;
-}
-
-.vi-tip p:last-child {
-    margin-bottom: 0;
-}
-
-.vi-tip code {
-    padding: 1px 4px;
-    border-radius: var(--bs-border-radius-sm);
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    font-size: 0.78rem;
-}
-
-
-/* ==================================================================
  * The answers
  * ------------------------------------------------------------------
  * One block, three kinds, and the *absent* kind is drawn from the
@@ -522,6 +525,13 @@
 
 .vi-answerwrap {
     padding: 13px 14px 16px;
+}
+
+/* The region is already a card; the answer inside it needs no second box. */
+.vi-answerwrap > .vi-answer {
+    padding: 0;
+    border: 0;
+    background: none;
 }
 
 .vi-answer {
@@ -722,8 +732,27 @@
     padding: 13px 14px 14px;
 }
 
+.vi-work__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 16px;
+    margin-bottom: 10px;
+}
+
+.vi-work__intro {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.vi-work__title {
+    margin: 0 0 2px;
+    font-size: 1.0625rem;
+    font-weight: 700;
+}
+
 .vi-prov {
-    margin: 0 0 10px;
+    margin: 0;
     max-width: 78ch;
     color: var(--bs-secondary-color);
     font-size: 0.78rem;
@@ -808,19 +837,12 @@
 
 
 /* ------------------------------------------------------------------
- * The tape: where the reader is, as one line and one cell per row
+ * The rail's Review card: where the reader is, and the filters
  * ------------------------------------------------------------------ */
 
-.vi-tapewrap {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-
 .vi-progress {
-    font-size: 0.78rem;
+    margin: 0 0 8px;
+    font-size: 0.8125rem;
     color: var(--bs-secondary-color);
 }
 
@@ -830,85 +852,78 @@
     font-variant-numeric: tabular-nums;
 }
 
-.vi-tape {
-    display: flex;
-    gap: 2px;
-    height: 17px;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.vi-cell {
-    flex: 1 1 0;
-    min-width: 3px;
-    max-width: 8px;
-    padding: 0;
-    border-radius: 1px;
-    cursor: pointer;
-    background: transparent;
-    border: 1px solid var(--bs-border-color);
-}
-
-.vi-cell.is-cursor {
-    outline: 2px solid var(--primary);
-    outline-offset: 1px;
-}
-
-.vi-swatch {
-    width: 9px;
-    height: 9px;
-    border-radius: 1px;
-    border: 1px solid var(--bs-border-color);
-}
-
 /*
- * One state vocabulary, drawn twice: the legend is the tape's key and
- * a key whose marks are not the marks is worse than none.
+ * Two fills on one track: how much has been assessed, faintly, and how
+ * much the reader has reviewed over it.
  */
-.vi-cell[data-s="queued"],
-.vi-swatch[data-s="queued"] {
-    border-style: dashed;
+.vi-meter {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bs-secondary-bg);
+    overflow: hidden;
 }
 
-.vi-cell[data-s="flight"],
-.vi-swatch[data-s="flight"] {
-    border-color: var(--bs-secondary-color);
-    background: var(--bs-secondary-color);
-    opacity: 0.45;
+.vi-meter > span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    transition: width 0.2s ease;
 }
 
-.vi-cell[data-s="todo"],
-.vi-swatch[data-s="todo"] {
-    border-color: var(--bs-secondary-color);
+.vi-meter__seen {
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
-.vi-cell[data-s="opened"],
-.vi-swatch[data-s="opened"] {
-    border-color: var(--primary);
+.vi-meter__done {
     background: var(--primary);
 }
 
-.vi-cell[data-s="cleared"],
-.vi-swatch[data-s="cleared"] {
-    border-color: var(--bs-secondary-color);
-    background: var(--bs-secondary-color);
-    opacity: 0.35;
+.vi-flts {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 0 .5rem .5rem;
 }
 
-/*
- * A lane that never came back is hatched rather than filled: it is
- * neither an answer nor an absence of one, and the legend does not
- * list it because a failure is a thing that happened rather than a
- * state a reader is working towards.
- */
-.vi-cell[data-s="failed"] {
-    border-color: var(--bs-body-color);
-    background: repeating-linear-gradient(45deg,
-        var(--bs-body-color) 0 1px, transparent 1px 3px);
+.vi-flt {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: .35rem .6rem;
+    border: 0;
+    border-radius: var(--bs-border-radius);
+    background: none;
+    color: var(--bs-body-color);
+    font-size: .8125rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vi-flt:hover {
+    background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+
+.vi-flt[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--primary) 13%, transparent);
+    color: var(--bs-link-color);
+    font-weight: 600;
+}
+
+.vi-flt b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vi-flt:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    .vi-cell[data-s="flight"],
     .vi-row[data-s="flight"] .vi-bar {
         animation: vi-breathe 1.3s ease-in-out infinite;
     }
@@ -919,19 +934,68 @@
     50% { opacity: 0.62; }
 }
 
-.vi-legend {
+
+/* ------------------------------------------------------------------
+ * The rail's lean card: how the assessed rows lean
+ * ------------------------------------------------------------------ */
+
+.vi-leans {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px 14px;
-    margin-bottom: 8px;
-    font-size: 0.68rem;
+    flex-direction: column;
+    gap: .45rem;
+    margin: 0;
+    padding: .75rem 1rem .9rem;
+    list-style: none;
+}
+
+.vi-leanrow {
+    display: grid;
+    grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 3ch;
+    align-items: center;
+    gap: .6rem;
+    font-size: .8125rem;
+}
+
+.vi-leanrow > span:first-child {
+    justify-self: start;
+}
+
+.vi-leanrow b {
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vi-leanrow.is-zero b {
+    font-weight: 400;
     color: var(--bs-secondary-color);
 }
 
-.vi-legend > span {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+.vi-leanbar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bs-secondary-bg);
+    overflow: hidden;
+}
+
+.vi-leanbar i {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--vi-lacks);
+    transition: width 0.2s ease;
+}
+
+[data-vi-lean-row="threat"] .vi-leanbar i {
+    background: var(--vi-mal-chip);
+}
+
+[data-vi-lean-row="benign"] .vi-leanbar i {
+    background: var(--vi-ben-chip);
+}
+
+[data-vi-lean-row="contested"] .vi-leanbar i {
+    background: var(--vi-rel-aging);
 }
 
 
@@ -944,7 +1008,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 12px;
-    margin-bottom: 9px;
 }
 
 .vi-segs {
@@ -992,9 +1055,10 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 10px;
-    margin-left: auto;
-    font-size: 0.68rem;
+    gap: 4px 12px;
+    padding: .6rem 1rem;
+    border-top: 1px solid var(--bs-border-color);
+    font-size: 0.72rem;
     color: var(--bs-secondary-color);
 }
 
@@ -1004,9 +1068,15 @@
     gap: 4px;
 }
 
+.vi-keys .vi-kbd {
+    margin-left: 0;
+}
+
 .vi-tabonly {
-    border-left: 1px solid var(--bs-border-color);
-    padding-left: 12px;
+    margin: 0;
+    padding: 0 1rem .75rem;
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color);
 }
 
 .vi-sortnote {
@@ -2043,36 +2113,38 @@
 /* ==================================================================
  * Carried over
  * ------------------------------------------------------------------
- * A line of chips at the foot of the card, and a sentence saying whose
- * line it is. It is the quietest block on the page on purpose: a way
- * back to what the reader was doing, offered where it cannot compete
- * with the box they came here to type in.
+ * A card under the box: a way back to what the reader was doing.
  *
- * Each chip is a link that also answers on hover, so it takes the
+ * Each entry is a link that also answers on hover, so it takes the
  * hover card's trigger class and overrides what that class says about
  * the cursor — `cursor: help` and a dotted underline are the affordance
- * for a word inside a sentence, and this is a bordered chip whose whole
- * job is to be clicked.
+ * for a word inside a sentence, and this is an entry whose whole job is
+ * to be clicked.
  * ================================================================== */
 
 .vi-recent {
-    border-top: 1px solid var(--bs-border-color);
-    padding: 11px 14px 12px;
-    background: var(--bs-body-bg);
+    margin-top: 1rem;
 }
 
 .vi-recent__lead {
     margin: 0;
-    font-size: 0.72rem;
-    line-height: 1.5;
+    padding: .75rem 1rem;
+    font-size: 0.8125rem;
     color: var(--bs-secondary-color);
 }
 
-.vi-recent__chips {
+.vi-recent__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: .5rem .75rem;
+    margin: 0;
+    padding: .75rem 1rem;
+    list-style: none;
+}
+
+.vi-recent__list .vi-chip {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px 8px;
-    margin-top: 8px;
+    justify-content: space-between;
 }
 
 .vi-chip {
@@ -2124,224 +2196,80 @@
 
 
 /* ==================================================================
- * The tile row
+ * The rail's instance card
  * ------------------------------------------------------------------
- * Above the card, not inside it: standing facts about the reader's own
- * situation, read once on arrival. The strip inside the card says what
- * rules the box's answers were worked under; these are measurements of
- * the instance and the organisation, and they belong to the page's
- * introduction rather than to the control.
- *
- * It carries no chrome of its own — no ground, no border, no padding.
- * The tiles are the cards and the page's own gutter is the margin, so
- * the row reads as a row of small cards rather than as a panel with
- * cards inside it.
- *
- * `auto-fit` rather than a column count, so adding a tile is one line
- * of markup and no layout decision: five sit abreast down to a ~1000px
- * viewport and a phone stacks them without a media query.
+ * One fact a line, the label quiet and the figure in the body ink; the
+ * longer explanation is the line's tooltip.
  * ================================================================== */
 
-.vi-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
+.vi-facts {
+    margin: 0;
+    padding: .25rem 0;
 }
 
-.vi-tile {
-    min-width: 0;
-    padding: 12px 14px 13px;
-    border: 1px solid var(--bs-border-color-translucent);
-    border-radius: var(--bs-border-radius);
-    background: var(--bs-body-bg);
-    box-shadow: var(--bs-box-shadow-sm);
-}
-
-/*
- * Sentence case and no trailing colon: the label names the tile, it
- * does not introduce the number.
- */
-.vi-tile__label {
+.vi-fact {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .45rem 1rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    font-size: .8125rem;
+}
+
+.vi-fact:first-child {
+    border-top: 0;
+}
+
+.vi-fact dt {
+    min-width: 0;
+    font-weight: 400;
     color: var(--bs-secondary-color);
-    line-height: 1.3;
 }
 
-/*
- * The icon is identity, not status, so it takes Overmind's primary
- * rather than one of the verdict hues `value-palette.css` reserves
- * for an assessment. `aria-hidden`, because the label already says
- * what the tile is.
- */
-.vi-tile__icon {
-    flex: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    font-size: 0.78rem;
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
-}
-
-
-/* ==================================================================
- * The new-values sparkline
- * ------------------------------------------------------------------
- * One bar per day for thirty days, in ink weight rather than a hue:
- * colour on these pages means assessment. The seven days the figure
- * counts are darker than the rest and today is the full ink; a day from
- * before the first count draws only a faint baseline, so it reads as
- * unknown rather than as zero.
- * ================================================================== */
-
-.vi-spark {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 24px;
-    margin: 2px 0 6px;
-}
-
-.vi-spark__bar {
-    flex: 1 1 0;
-    min-width: 0;
-    height: max(2px, var(--h));
-    border-radius: 1px 1px 0 0;
-    background: color-mix(in srgb, var(--vi-carries) 22%, transparent);
-}
-
-.vi-spark__bar--window {
-    background: color-mix(in srgb, var(--vi-carries) 55%, transparent);
-}
-
-.vi-spark__bar:hover {
-    background: color-mix(in srgb, var(--vi-carries) 80%, transparent);
-}
-
-.vi-spark__bar--today,
-.vi-spark__bar--today:hover {
-    background: var(--vi-carries);
-}
-
-.vi-spark__bar--uncounted,
-.vi-spark__bar--uncounted:hover {
-    height: 2px;
-    background: color-mix(in srgb, var(--vi-lacks) 20%, transparent);
-}
-
-.vi-tile__link {
+.vi-fact dd {
+    margin: 0;
     font-weight: 600;
+    text-align: right;
     white-space: nowrap;
+}
+
+.vi-fact__sub {
+    font-size: .75rem;
+    font-weight: 400;
+    color: var(--bs-secondary-color);
+}
+
+.vi-fact__none {
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+}
+
+.vi-fact__warn {
+    color: var(--vi-rel-aging);
+}
+
+.vi-fact__link {
+    margin-left: .35rem;
+    font-weight: 600;
     text-decoration: none;
 }
 
-.vi-tile__link:hover,
-.vi-tile__link:focus-visible {
+.vi-fact__link:hover,
+.vi-fact__link:focus-visible {
     text-decoration: underline;
-}
-
-/*
- * **Proportional figures, deliberately.** `tabular-nums` is for
- * columns that must align down the page — the worklist's signal strength
- * scores and day counts have it. A single large number set tabular
- * looks gappy, because every digit takes the width of a `0`.
- */
-.vi-tile__value {
-    margin: 8px 0 4px;
-    font-size: 1.75rem;
-    font-weight: 600;
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-    color: var(--bs-body-color);
-}
-
-/*
- * An absence is words, and words at the value's size would shout. It
- * keeps the slot so the tiles line up, and takes the quiet ink because
- * what it says is that there is nothing to read.
- */
-.vi-tile__value--none {
-    font-size: 1rem;
-    font-weight: 500;
-    line-height: 1.925rem;
-    letter-spacing: 0;
-    color: var(--bs-secondary-color);
-}
-
-.vi-tile__sub {
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: var(--bs-secondary-color);
-    text-wrap: pretty;
-}
-
-/*
- * The figure inside the qualifying line is a number in prose, not a
- * second value — it takes the body ink and the sentence's size, the
- * same treatment the conditions strip gives the profile's name.
- */
-.vi-tile__sub b {
-    font-weight: 600;
-    color: var(--bs-body-color);
 }
 
 
 /* ==================================================================
  * Narrow
  * ------------------------------------------------------------------
- * The verb drops under the field rather than squeezing it.
+ * The rail already drops under the main column below 992px; on a
+ * phone the keyboard hints go as well, since there is no keyboard.
  * ================================================================== */
 
 @media (max-width: 575.98px) {
-    /*
-     * **On a phone the tiles go after the card.** Five stacked tiles
-     * are 526px, which puts the one control this page exists for below
-     * the fold — a reader who came to paste a value would scroll past
-     * five facts to reach the box. They are standing facts read once,
-     * so they lose nothing by being read second; the box does.
-     *
-     * The order swaps and the source does not, so a screen reader and
-     * a keyboard still meet them in the order they are written.
-     */
-    .vi-app {
-        order: 1;
-    }
-
-    .vi-tiles {
-        order: 2;
-        margin-top: 12px;
-        margin-bottom: 0;
-    }
-
-    .vi-page > .vi-tiles:first-child {
-        margin-top: 12px;
-    }
-
-    .vi-prompt__side {
-        width: 100%;
-        padding-top: 0;
-        justify-content: space-between;
-    }
-
-    /*
-     * The keyboard hints go: there is no keyboard. The sentence they
-     * were sharing a line with stays, because what it says is true on
-     * a phone too.
-     */
-    .vi-keys > span:not(.vi-tabonly) {
+    .vi-keys {
         display: none;
-    }
-
-    .vi-tabonly {
-        border-left: 0;
-        padding-left: 0;
     }
 }

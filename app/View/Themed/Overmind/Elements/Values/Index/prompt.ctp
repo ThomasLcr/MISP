@@ -22,11 +22,9 @@
  * the whole of *the box keeps its content* (§8 G11) — a reader fixing
  * one character does not re-type the value.
  *
- * Under the box is the one question about it: whether what was pasted
- * is a list of values or a text with values in it (§11). It sits
- * there rather than beside the verb because it changes what the paste
- * *means*, not what pressing does, and a reader checks it while
- * looking at what they pasted.
+ * Under the box, on the verb's line, is the one question about it:
+ * whether what was pasted is a list of values or a text with values in
+ * it (§11).
  */
 App::uses('ValueInputTool', 'Tools/ValueIntelligence');
 
@@ -51,7 +49,7 @@ echo $this->Form->create('Value', array(
     <div class="vi-prompt__field">
         <?= $this->Form->textarea('value', array(
             'class' => 'form-control vi-ta',
-            'rows' => 3,
+            'rows' => 4,
             'autofocus' => true,
             'spellcheck' => 'false',
             'autocomplete' => 'off',
@@ -60,9 +58,11 @@ echo $this->Form->create('Value', array(
             'placeholder' => __('Paste a value, or a list of values'),
             'aria-label' => __('Values to look up'),
         )) ?>
+    </div>
+    <div class="vi-prompt__side">
         <?php
         /*
-         * The one question about the paste, under the paste.
+         * The one question about the paste.
          *
          * **Off every time, and nothing remembers it**
          * (`value-index.md` §11, V20). Only the reader knows whether
@@ -80,7 +80,10 @@ echo $this->Form->create('Value', array(
          * question.
          */
         ?>
-        <label class="vi-mode">
+        <label class="vi-mode" title="<?= h(__(
+            'Use this for a pasted report or advisory. When off,'
+            . ' each line is looked up as one value.'
+        )) ?>">
             <?= $this->Form->checkbox('extract', array(
                 'value' => 1,
                 'checked' => !empty(
@@ -91,20 +94,20 @@ echo $this->Form->create('Value', array(
             <span class="vi-mode__say"><?= h(__(
                 'Extract values from text'
             )) ?></span>
-            <span class="vi-mode__why"><?= h(__(
-                'Use this for a pasted report or advisory. When off,'
-                . ' each line is looked up as one value.'
-            )) ?></span>
         </label>
-    </div>
-    <div class="vi-prompt__side">
+        <span class="vi-hint"><?= sprintf(
+            h(__('Defanged input such as %s or %s is refanged'
+                . ' automatically.')),
+            '<code>hxxp://</code>',
+            '<code>1.2.3[.]4</code>'
+        ) ?></span>
+        <span class="vi-grow" aria-hidden="true"></span>
         <?php
         /*
          * Clear. It empties the box and puts the region back to the
-         * invitation, which is the state a reload would reach — the
-         * difference being that a reload also throws away the tiles,
-         * the strip and the carried-over line, none of which the
-         * reader's paste changed.
+         * invitation, which is the state a reload would reach without
+         * re-reading the rail and the carried-over list, none of which
+         * the reader's paste changed.
          *
          * **It is `hidden` until there is something to clear**, so the
          * empty page is not offering to empty itself, and it starts
