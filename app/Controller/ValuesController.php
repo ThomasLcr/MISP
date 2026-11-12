@@ -1005,26 +1005,78 @@ class ValuesController extends AppController
     }
 
     /**
-     * The Occurrences tab: the facet rail and the table it counts.
-     *
-     * One endpoint rather than two, unlike the panels above. A facet
-     * count and the rows it counts have to be computed from the same
-     * fetch or they can disagree with each other, and two endpoints
-     * against a moving attribute set is exactly how that happens.
+     * The Occurrences tab: the shared index filter bar over one page of
+     * the value's occurrences. The bar and the pager reload this
+     * fragment with named parameters (`type:ip-dst/page:2`).
      *
      * @param string $b64value
      * @return void
      */
     public function viewOccurrenceTable($b64value = null)
     {
-        $this->loadModel('ValueIntelligence');
-        $this->__renderPanel(
-            $this->ValueIntelligence->forOccurrenceTable(
-                $this->Auth->user(),
-                $this->__decodeValue($b64value)
-            ),
-            'value_occurrence_table'
+        $named = $this->request->params['named'];
+        $filters = array_intersect_key($named, array_flip(array(
+            'q', 'type', 'category', 'org', 'object', 'distribution',
+            'ids', 'tags', 'galaxy', 'proposal', 'deleted',
+            'changed', 'created', 'published', 'seen',
+        )));
+        // The columns a header may sort on, newest change last.
+        $sortable = array(
+            'Attribute.event_id', 'Attribute.type', 'Attribute.category',
+            'Attribute.last_seen', 'Attribute.timestamp',
         );
+        $sort = $named['sort'] ?? null;
+        $direction = strtolower($named['direction'] ?? '') === 'asc'
+            ? 'asc' : 'desc';
+        $order = in_array($sort, $sortable, true)
+            ? array($sort . ' ' . strtoupper($direction), 'Attribute.id DESC')
+            : null;
+
+        $this->loadModel('ValueIntelligence');
+        $profile = $this->ValueIntelligence->forOccurrenceTable(
+            $this->Auth->user(),
+            $this->__decodeValue($b64value),
+            array_filter(array(
+                'filters' => $filters,
+                'page' => $named['page'] ?? 1,
+                'limit' => $named['limit'] ?? null,
+                'order' => $order,
+            ), function ($option) {
+                return $option !== null;
+            })
+        );
+
+        $paging = $profile['occurrence_paging'];
+        $this->request->params['paging'] = array($this->modelClass => array(
+            'page' => $paging['page'],
+            'current' => count($profile['occurrences']),
+            'count' => $paging['count'],
+            'prevPage' => $paging['page'] > 1,
+            'nextPage' => $paging['page'] < $paging['page_count'],
+            'pageCount' => $paging['page_count'],
+            'limit' => $paging['limit'],
+            'options' => array_filter(array(
+                'page' => $paging['page'],
+                'sort' => $order === null ? null : $sort,
+                'direction' => $order === null ? null : $direction,
+            )),
+            'paramType' => 'named',
+        ));
+
+        App::uses('IndexPicker', 'Tools');
+        $list = function ($key) use ($filters) {
+            if (!isset($filters[$key])) {
+                return array();
+            }
+            return is_array($filters[$key])
+                ? array_values($filters[$key])
+                : explode('||', (string)$filters[$key]);
+        };
+        $this->set('filterLabels', IndexPicker::resolve($this->Auth->user(), array(
+            'tag' => $list('tags'),
+            'galaxy' => $list('galaxy'),
+        )));
+        $this->__renderPanel($profile, 'value_occurrence_table');
     }
 
     /**

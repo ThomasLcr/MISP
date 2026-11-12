@@ -53,7 +53,8 @@ $config = [
         'customTitle' => __('Pick dates'),
         'from' => __('From'),
         'to' => __('To'),
-        'hint' => trim((count($fields) > 1 ? __('Both rows apply together.') . ' ' : '')
+        'hint' => trim((count($fields) > 2 ? __('All rows apply together.') . ' '
+            : (count($fields) > 1 ? __('Both rows apply together.') . ' ' : ''))
             . (empty($deferred) ? __('Applies when you close the picker.') : __('Kept until you apply the filters.'))),
     ],
 ];

@@ -292,12 +292,6 @@ $panelChrome = array(
         $await(null, null, 'var(--primary)', 4, $aside),
         $await(null, null, 'var(--primary)', 3, $aside),
     ),
-    'viewOccurrenceTable' => array(
-        $await(__('Filters'), 'fas fa-filter', 'var(--attribute)', 5,
-            array('col' => 3)),
-        $await(__('Occurrences'), $icoAttr, 'var(--attribute)', 8,
-            array('col' => 9)),
-    ),
     'viewSightingChart' => array(
         $await(__('Sightings over time'), $icoSight, 'var(--sighting)',
             6),
@@ -649,13 +643,8 @@ $tabRegistry = array(
          * `ValueIntelligence::forTabCounts`.
          */
         'badge' => $occurrenceBadge,
-        /*
-         * One full-width slot, and the panel lays out its own internal
-         * row: the rail on the left at col-lg-3, the table at col-lg-9,
-         * the reverse of this page's usual split. Both come out of one
-         * fetch, which is why they are one panel — a facet count and
-         * the rows it counts must not be able to disagree.
-         */
+        // One full-width panel: the shared filter bar over the table, as the
+        // event view's Attributes tab.
         'left' => array(
             $panel('viewOccurrenceTable'),
         ),

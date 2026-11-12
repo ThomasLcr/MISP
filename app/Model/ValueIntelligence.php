@@ -72,38 +72,12 @@ class ValueIntelligence extends AppModel
     public $useTable = false;
 
     /**
-     * The most occurrence rows one panel request will load.
-     *
-     * A cap on the *result size*, not on the query count — the six
-     * queries behind the occurrence table are constant in the number of
-     * occurrences. On a real instance a value like `443` resolves to
-     * tens of thousands of occurrences as the port half of
-     * `ip-dst|port`, and fetching those with their events, objects,
-     * sharing groups and tags is not a slow page but a page that does
-     * not arrive.
-     *
-     * **300.** Two things bound it, and neither is the query — nothing
-     * here scales with occurrence count.
-     *
-     * The page control renders one button per page inline, so the button
-     * count is rows ÷ page size and it shares the panel header with the
-     * subtitle. Measured at a 1500px viewport: twelve buttons leave the
-     * subtitle readable on two lines, twenty squeeze it to a 16px column,
-     * twenty-five push the panel into horizontal overflow. At the default
-     * page size of 60 this cap is five pages, which is seven buttons; at
-     * the smallest the reader can pick, 25, it is twelve.
-     *
-     * The other bound is the fragment. A row costs roughly 5.7 KB of
-     * markup, so 300 rows is about 1.7 MB — against the 5.9 MB that
-     * 1,000 rows of `443` produced when this was first written, which is
-     * a fragment that does not arrive. Raising it further is now a
-     * question about weight rather than about the pager, which is the
-     * more honest place for the limit to sit.
-     *
-     * When the cap bites, the panel says so — §14.6 keeps cap notices,
-     * because a cap is not a permission.
+     * Occurrences per page on the Occurrences tab, and the largest page
+     * a reader may ask for. The tab filters and pages on the server, so
+     * neither bounds what the table can reach.
      */
-    const OCCURRENCE_CAP = 300;
+    const OCCURRENCE_PAGE = 60;
+    const OCCURRENCE_PAGE_MAX = 200;
 
     /**
      * CIDR containment's read: occurrences of the blocks or addresses it
@@ -2572,44 +2546,53 @@ class ValueIntelligence extends AppModel
     }
 
     /**
-     * The Occurrences tab: the facet rail and the table it counts.
+     * The Occurrences tab: one page of the value's occurrences, narrowed
+     * by the tab's filter bar, with what its pickers can offer.
      *
-     * One method for both, because a facet count and the rows it counts
-     * have to come out of one assembly or they can disagree with each
-     * other — which is the same reason `viewOccurrenceTable` is one
-     * endpoint rather than two.
-     *
-     * Six queries, none of them per-occurrence or per-event:
-     *
-     *   1. the viewer's occurrence count            `Value`
-     *   2. the occurrence rows, capped              `Value`
-     *   3. their attribute tags (the hasMany half of 2's contain)
-     *   4. the tag records behind those             `MispAttribute`
-     *   5. `Event.Orgc` for all N events at once    `Event`
-     *   6. pending proposals per row                `ShadowAttribute`
+     * Filtered and paged in SQL, so the table reaches every occurrence
+     * of a value like `443` (48,000 rows) rather than its newest few
+     * hundred. The pickers' options are counted over the unfiltered,
+     * non-deleted rows, so a choice never empties the others.
      *
      * @param array $user
      * @param string $value
-     * @param array $options Reserved; `types` reaches `Value`
+     * @param array $options `filters` (Value::occurrenceFilterConditions,
+     *     plus `deleted`: '1' include, '2' only), `page`, `limit`,
+     *     `order`; `types` reaches `Value`
      * @return array
      */
     public function forOccurrenceTable(array $user, $value,
         array $options = array()
     ) {
         $valueModel = $this->model('Value');
-        $summary = $valueModel->occurrenceSummaryFor(
-            $user,
-            $value,
-            array_merge($options, array('with_deleted' => true))
+        $filters = isset($options['filters']) ? $options['filters'] : array();
+        $page = max(1, (int)($options['page'] ?? 1));
+        $limit = (int)($options['limit'] ?? self::OCCURRENCE_PAGE);
+        $limit = max(1, min(self::OCCURRENCE_PAGE_MAX, $limit));
+        $order = $options['order'] ?? self::OCCURRENCE_ORDER;
+        $base = array_diff_key(
+            $options,
+            array_flip(array('filters', 'page', 'limit', 'order'))
         );
-        $total = $summary['occurrences'];
-        $rows = $valueModel->occurrencesFor(
+
+        $deleted = (string)($filters['deleted'] ?? '');
+        $read = $base + array(
+            'filters' => array_diff_key($filters, array('deleted' => true)),
+            'deleted' => $deleted === '2'
+                ? 'only'
+                : ($deleted === '1' ? 'include' : 'exclude'),
+        );
+        $total = $valueModel->occurrenceCountFor($user, $value, $read);
+        $pageCount = max(1, (int)ceil($total / $limit));
+        $page = min($page, $pageCount);
+        $rows = $total === 0 ? array() : $valueModel->occurrencesFor(
             $user,
             $value,
-            array_merge($options, array(
-                'limit' => self::OCCURRENCE_CAP,
-                'order' => self::OCCURRENCE_ORDER,
-            ))
+            $read + array(
+                'limit' => $limit,
+                'page' => $page,
+                'order' => $order,
+            )
         );
 
         $this->attachTags($rows);
@@ -2620,71 +2603,58 @@ class ValueIntelligence extends AppModel
         // After both tag attaches: a row's clusters are the galaxy tags
         // of either scope, ruled on together in one call.
         $this->attachClusters($user, $rows);
-        $this->attachProposalCounts($rows, true);
+        $this->attachProposalCounts($rows);
         $this->attachSpellings($rows, $value);
-        $this->attachEffectiveDistribution($user, $rows);
         $this->attachFeedHits($user, $rows);
 
-        $stats = ValueStatsTool::occurrenceStats($rows, $total);
-        /*
-         * **The events and organisations are the value's, not the
-         * page's**, as on the Overview card — `forOccurrences` has the
-         * argument and phase 29 §14.2 the case. `occurrenceStats`
-         * derives both by walking the rows it was handed, which is
-         * exact while every row is in hand and becomes a count of one
-         * page the moment a cap bites. At 300 that is rarer than the
-         * card's 8 and not rare: `443` is 48,255 occurrences across
-         * 1,844 events, and this header claimed the events of its first
-         * 300 beside a fact strip reading the real number.
-         *
-         * `occurrenceCountFor` is gone from here with it. The summary
-         * answers the total from the same conditions in the same query
-         * as the other two, so the three cannot drift and the panel
-         * pays one aggregate rather than two.
-         */
-        $stats['events'] = $summary['events'];
-        $stats['orgs'] = $summary['orgs'];
-
-        /*
-         * One plan for the whole tab. The rail folds at ten and the
-         * table's two label columns fold at four and three, so the
-         * profile has to reach all three before their folds rather
-         * than after; built once here so the rail cannot rank a
-         * taxonomy the column beside it ranks differently.
-         * `resolveFor()` memoises, so this tab pays nothing for it.
-         */
-        $plan = ValueLabelPriority::planFor(
-            array_key_exists('profile', $options)
-                ? $options['profile']
-                : ClassRegistry::init('AnalystProfile')
-                    ->resolveFor($user)
-        );
+        $summary = $valueModel->occurrenceSummaryFor($user, $value, $base);
+        $facets = $summary['occurrences'] === 0
+            ? array()
+            : $valueModel->occurrenceFacetsFor($user, $value, $base);
+        if (!empty($facets['org'])) {
+            $facets['org_names'] = $this->organisationNames(
+                array(),
+                array_keys($facets['org'])
+            );
+        }
 
         return array(
             'value' => $value,
             'occurrences' => $rows,
-            'occurrence_stats' => $stats,
-            'label_plan' => $plan,
+            'occurrence_paging' => array(
+                'page' => $page,
+                'limit' => $limit,
+                'count' => $total,
+                'page_count' => $pageCount,
+            ),
+            'occurrence_stats' => array(
+                'total' => $summary['occurrences'],
+                'events' => $summary['events'],
+                'orgs' => $summary['orgs'],
+                'deleted' => $valueModel->occurrenceCountFor(
+                    $user,
+                    $value,
+                    $base + array('deleted' => 'only')
+                ),
+                'proposals' => $valueModel->occurrenceCountFor(
+                    $user,
+                    $value,
+                    $base + array('filters' => array('proposal' => 1))
+                ),
+            ),
+            'occurrence_facets' => $facets,
             'feeds_shown' => !empty(
                 $user['Role']['perm_view_feed_correlations']
             ),
-            /*
-             * Null rather than a set of zero groups on a value with no
-             * occurrence the viewer may see: a rail of zeroes is a lie
-             * about the value (tabs/00-shared.md §5), and the table
-             * renders one honest empty state at full width instead.
-             */
-            'occurrence_facets' => empty($rows)
-                ? null
-                : ValueStatsTool::occurrenceFacets($rows, $total, $plan),
-            'occurrence_cap' => $total > $stats['shown']
-                ? array('shown' => $stats['shown'], 'total' => $total)
-                : null,
-            'standalone_proposals' => $this->standaloneProposals(
-                $user,
-                $value,
-                $options
+            'label_plan' => ValueLabelPriority::planFor(
+                array_key_exists('profile', $options)
+                    ? $options['profile']
+                    : ClassRegistry::init('AnalystProfile')
+                        ->resolveFor($user)
             ),
+            'standalone_proposals' => $page === 1
+                ? $this->standaloneProposals($user, $value, $base)
+                : array(),
         );
     }
 
@@ -3690,15 +3660,11 @@ class ValueIntelligence extends AppModel
             $user,
             $event
         );
+        // Where the global attribute index puts them, for Fields/feedHits.
         foreach (array_values($attached) as $i => $attribute) {
-            $feeds = array();
-            foreach ($attribute['Feed'] ?? array() as $feed) {
-                $feeds[] = array(
-                    'id' => (int)$feed['id'],
-                    'name' => (string)$feed['name'],
-                );
+            if (!empty($attribute['Feed'])) {
+                $rows[$keys[$i]]['Attribute']['Feed'] = $attribute['Feed'];
             }
-            $rows[$keys[$i]]['Feed'] = $feeds;
         }
     }
 

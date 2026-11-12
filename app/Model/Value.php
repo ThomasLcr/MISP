@@ -3,6 +3,7 @@ App::uses('AppModel', 'Model');
 App::uses('ValueFieldKind', 'Tools/ValueIntelligence');
 App::uses('ValueFacetTool', 'Tools');
 App::uses('ValueConditionRewriter', 'Tools');
+App::uses('Validation', 'Utility');
 
 /**
  * The value-identity seam for the Value Intelligence page.
@@ -318,7 +319,9 @@ class Value extends AppModel
      * @param string $value
      * @param array $options `types` narrows to a set of MISP types;
      *                       `alias` names the model the columns are on;
-     *                       `exclude_orgs` drops those creating orgs
+     *                       `exclude_orgs` drops those creating orgs;
+     *                       `filters` takes occurrenceFilterConditions';
+     *                       `deleted` is exclude, include or only
      * @return array
      */
     public function conditionsFor($value, array $options = array())
@@ -350,7 +353,265 @@ class Value extends AppModel
                 ),
             );
         }
+        if (!empty($options['filters']) && $alias === 'Attribute') {
+            $parts = array_merge(
+                $parts,
+                $this->occurrenceFilterConditions($options['filters'])
+            );
+        }
+        if (isset($options['deleted']) && $alias === 'Attribute') {
+            if ($options['deleted'] === 'only') {
+                $parts[] = array('Attribute.deleted' => 1);
+            } elseif ($options['deleted'] !== 'include') {
+                $parts[] = array('Attribute.deleted' => 0);
+            }
+        }
         return count($parts) === 1 ? $conditions : $parts;
+    }
+
+    /**
+     * The Occurrences tab's filters, as conditions on the value's rows.
+     *
+     * Each key takes one value, a list, or a `||`-joined string. `q`
+     * matches an event id (`#12`), an attribute or event UUID, or text
+     * in the comment or the event's title. `object` takes object names,
+     * and '0' for an attribute outside any object. `ids` is '1' (set) or
+     * '2' (unset). `tags` and `galaxy` take tag names, matched on the
+     * attribute or on its event. `proposal` keeps the rows a pending
+     * proposal would change. `changed`, `created`, `published` (the
+     * event's) and `seen` (last seen) take a preset or a range, as
+     * occurrenceTimeRange reads them. The caller joins Event and Object.
+     *
+     * @param array $filters
+     * @return array Conditions that must all hold
+     */
+    public function occurrenceFilterConditions(array $filters)
+    {
+        $list = function ($key) use ($filters) {
+            if (!isset($filters[$key])) {
+                return array();
+            }
+            $values = is_array($filters[$key])
+                ? $filters[$key]
+                : explode('||', (string)$filters[$key]);
+            $values = array_map('trim', array_map('strval', $values));
+            return array_values(array_filter($values, 'strlen'));
+        };
+        $parts = array();
+
+        $search = isset($filters['q']) && is_string($filters['q'])
+            ? trim($filters['q'])
+            : '';
+        if ($search !== '') {
+            if (preg_match('/^#?(\d+)$/', $search, $match)) {
+                $parts[] = array('Attribute.event_id' => (int)$match[1]);
+            } elseif (Validation::uuid($search)) {
+                $parts[] = array('OR' => array(
+                    'Attribute.uuid' => $search,
+                    'Event.uuid' => $search,
+                ));
+            } else {
+                $like = '%' . str_replace(
+                    array('\\', '%', '_'),
+                    array('\\\\', '\\%', '\\_'),
+                    $search
+                ) . '%';
+                $parts[] = array('OR' => array(
+                    'Attribute.comment LIKE' => $like,
+                    'Event.info LIKE' => $like,
+                ));
+            }
+        }
+
+        foreach (array(
+            'type' => 'Attribute.type',
+            'category' => 'Attribute.category',
+        ) as $key => $column) {
+            $values = $list($key);
+            if (!empty($values)) {
+                $parts[] = array($column => $values);
+            }
+        }
+        $orgs = array_map('intval', $list('org'));
+        if (!empty($orgs)) {
+            $parts[] = array('Event.orgc_id' => $orgs);
+        }
+        $distributions = array_map('intval', $list('distribution'));
+        if (!empty($distributions)) {
+            $parts[] = array('Attribute.distribution' => $distributions);
+        }
+        $ids = $list('ids');
+        if (count($ids) === 1) {
+            $parts[] = array('Attribute.to_ids' => $ids[0] === '1' ? 1 : 0);
+        }
+        $objects = $list('object');
+        if (!empty($objects)) {
+            $either = array();
+            if (in_array('0', $objects, true)) {
+                $either[] = array('Attribute.object_id' => 0);
+            }
+            $names = array_values(array_diff($objects, array('0')));
+            if (!empty($names)) {
+                $either[] = array('Object.name' => $names);
+            }
+            $parts[] = count($either) === 1 ? $either[0] : array('OR' => $either);
+        }
+
+        $db = $this->attributes()->getDataSource();
+        foreach (array('tags', 'galaxy') as $key) {
+            $names = $list($key);
+            if (empty($names)) {
+                continue;
+            }
+            $tagIds = array_map('intval', array_keys(
+                ClassRegistry::init('Tag')->find('list', array(
+                    'conditions' => array('Tag.name' => $names),
+                    'fields' => array('Tag.id', 'Tag.name'),
+                    'recursive' => -1,
+                ))
+            ));
+            if (empty($tagIds)) {
+                $parts[] = array('1 = 0');
+                continue;
+            }
+            $in = implode(',', $tagIds);
+            $parts[] = array('OR' => array(
+                'Attribute.id IN (SELECT attribute_id FROM '
+                    . $db->fullTableName('attribute_tags')
+                    . ' WHERE tag_id IN (' . $in . '))',
+                'Attribute.event_id IN (SELECT event_id FROM '
+                    . $db->fullTableName('event_tags')
+                    . ' WHERE tag_id IN (' . $in . '))',
+            ));
+        }
+
+        // A preset (`7d`) is a lower bound; a range is [from, to], either
+        // end open ('' or '0'). `seen` reads last_seen, in microseconds.
+        foreach (array(
+            'changed' => array('Attribute.timestamp', 1),
+            'created' => array('Attribute.created', 1),
+            'published' => array('Event.publish_timestamp', 1),
+            'seen' => array('Attribute.last_seen', 1000000),
+        ) as $key => list($column, $scale)) {
+            $range = $this->occurrenceTimeRange($filters[$key] ?? null);
+            if ($range === null) {
+                continue;
+            }
+            if ($range[0] !== null) {
+                $parts[] = array($column . ' >=' => $range[0] * $scale);
+            }
+            if ($range[1] !== null) {
+                $parts[] = array($column . ' <=' => $range[1] * $scale);
+            }
+        }
+
+        if (!empty($filters['proposal'])) {
+            $parts[] = array(
+                'Attribute.id IN (SELECT old_id FROM '
+                    . $db->fullTableName('shadow_attributes')
+                    . ' WHERE deleted = 0)',
+            );
+        }
+        return $parts;
+    }
+
+    /**
+     * A time filter's bounds, as UNIX timestamps.
+     *
+     * @param mixed $value `7d`, a date, or [from, to] (also `from||to`)
+     * @return array|null [from|null, to|null], null when unset
+     */
+    private function occurrenceTimeRange($value)
+    {
+        if (is_string($value) && strpos($value, '||') !== false) {
+            $value = explode('||', $value, 2);
+        }
+        $bound = function ($text, $end) {
+            $text = trim((string)$text);
+            if ($text === '' || $text === '0') {
+                return null;
+            }
+            $time = $this->resolveTimeDelta($text);
+            // A bare date ends at the end of its day.
+            if ($end && preg_match('/^\d{4}-\d{2}-\d{2}$/', $text)) {
+                $time += 86399;
+            }
+            return (int)$time;
+        };
+        if (is_array($value)) {
+            $value = array_values($value);
+            $range = array($bound($value[0] ?? '', false), $bound($value[1] ?? '', true));
+        } elseif (is_string($value) && trim($value) !== '') {
+            $range = array($bound($value, false), null);
+        } else {
+            return null;
+        }
+        return $range[0] === null && $range[1] === null ? null : $range;
+    }
+
+    /**
+     * What the Occurrences tab's pickers can narrow to: per column, the
+     * values the viewer's occurrences carry and how many carry each.
+     *
+     * One GROUP BY per column over the value's rows, soft-deleted ones
+     * left out. `org` is keyed by creator org id, `object` by object name
+     * ('' outside any object), `ids` by 1 / 0.
+     *
+     * @param array $user
+     * @param string $value
+     * @param array $options As conditionsFor
+     * @return array column => value => count, most carried first
+     */
+    public function occurrenceFacetsFor(array $user, $value,
+        array $options = array()
+    ) {
+        $attributes = $this->attributes();
+        $conditions = $attributes->buildConditions($user);
+        $conditions['AND'][] = $this->conditionsFor($value, $options);
+        $conditions['AND'][] = array('Attribute.deleted' => 0);
+        $db = $attributes->getDataSource();
+        // Joined by hand so the select holds the grouped column alone.
+        $joins = array(
+            array(
+                'table' => $db->fullTableName('events', false, false),
+                'alias' => 'Event',
+                'type' => 'INNER',
+                'conditions' => array('Event.id = Attribute.event_id'),
+            ),
+            array(
+                'table' => $db->fullTableName('objects', false, false),
+                'alias' => 'Object',
+                'type' => 'LEFT',
+                'conditions' => array('Object.id = Attribute.object_id'),
+            ),
+        );
+        $columns = array(
+            'type' => array('Attribute', 'type'),
+            'category' => array('Attribute', 'category'),
+            'org' => array('Event', 'orgc_id'),
+            'distribution' => array('Attribute', 'distribution'),
+            'ids' => array('Attribute', 'to_ids'),
+            'object' => array('Object', 'name'),
+        );
+        $facets = array();
+        foreach ($columns as $key => list($model, $field)) {
+            $rows = $attributes->find('all', array(
+                'fields' => array($model . '.' . $field, 'COUNT(*) AS n'),
+                'conditions' => $conditions,
+                'joins' => $joins,
+                'recursive' => -1,
+                'group' => array($model . '.' . $field),
+                'order' => array('n' => 'DESC'),
+            ));
+            $facets[$key] = array();
+            foreach ($rows as $row) {
+                $facet = isset($row[$model][$field])
+                    ? (string)$row[$model][$field]
+                    : '';
+                $facets[$key][$facet] = (int)$row[0]['n'];
+            }
+        }
+        return $facets;
     }
 
     /**
@@ -376,7 +637,9 @@ class Value extends AppModel
         $attributes = $this->attributes();
         $conditions = $attributes->buildConditions($user);
         $conditions['AND'][] = $this->conditionsFor($value, $options);
-        $conditions['AND'][] = array('Attribute.deleted' => 0);
+        if (!isset($options['deleted'])) {
+            $conditions['AND'][] = array('Attribute.deleted' => 0);
+        }
         return (int)$attributes->find('count', array(
             'conditions' => $conditions,
             'recursive' => -1,

@@ -561,27 +561,6 @@ tr.vp-occ-deleted td {
     opacity: 0.6;
 }
 
-.vp-occ-proposals {
-    width: max-content;
-    min-width: 16rem;
-    max-width: min(28rem, 90vw);
-    max-height: 60vh;
-    overflow-y: auto;
-    padding: 6px 0;
-    white-space: normal;
-}
-
-.vp-occ-proposal {
-    padding: 4px 12px;
-    font-size: 0.8rem;
-}
-
-.vp-occ-proposal-head {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-}
-
 .vp-relation {
     padding: 1px 6px;
     border-radius: 4px;
@@ -1298,60 +1277,6 @@ tr.vp-occ-deleted td {
     margin-top: 8px;
     font-size: .75rem;
     color: var(--bs-secondary-color);
-}
-
-/* ------------------------------------------------------------------
- * The month strips' year scale (the Occurrences tab's time pane)
- * ------------------------------------------------------------------ */
-
-.vp-spark-slot {
-    max-width: 22px;
-}
-
-/*
- * The year scale under the strip. One slot a month, sharing the bars'
- * flex rules **exactly** — that is the whole reason it is a row of
- * empty spans rather than a set of `left: n%` marks: once the bars hit
- * their `max-width` they stop filling the strip, and a percentage would
- * put every gridline somewhere its bar is not.
- */
-.vp-spark-scale {
-    display: flex;
-    gap: 1px;
-    justify-content: flex-start;
-    height: 15px;
-    margin-top: 3px;
-}
-
-.vp-spark-slot {
-    position: relative;
-    flex: 1 1 0;
-}
-
-.vp-spark-slot-tick::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 1px;
-    height: 4px;
-    background: var(--bs-border-color);
-}
-
-/*
- * Left-aligned on the tick rather than centred on it: the label names
- * the year that *starts* here, and a centred one would hang half of
- * itself over the December before it.
- */
-.vp-spark-tick {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    font-size: 0.6rem;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-    color: var(--bs-secondary-color);
-    white-space: nowrap;
 }
 
 /* ==================================================================
@@ -3849,84 +3774,9 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
     color: var(--vp-conflict-ink);
 }
 
-/* ==================================================================
- * Occurrences tab
- * ------------------------------------------------------------------
- * The two things the tab's table needs that no shared primitive
- * already carries: the density strip in the rail's date group, and a
- * disc that tells four organisations apart down a column.
- * ================================================================== */
-
 /*
- * The rail's variant of `.vp-spark`: forty buckets rather than ninety
- * days, in a quarter of the width, and coloured for the attribute
- * rather than for sightings — it is counting occurrences, not reports.
- */
-.vp-spark-attribute {
-    gap: 1px;
-    height: 30px;
-}
-
-.vp-spark-attribute .vp-spark-bar:not(.vp-spark-bar-empty) {
-    background: var(--attribute);
-}
-
-/*
- * A one-letter disc before the organisation name, so a column of four
- * organisations is scannable without reading it.
- *
- * The hue is computed from the organisation's name and passed in as
- * `--vp-orgdot-hue`, which is why this is the one place on the page
- * that does not take its colour from a theme variable: there is no
- * fixed set of organisations to assign variables to, and the same
- * organisation has to land on the same colour every time it appears.
- *
- * Decorative, and marked `aria-hidden` in the markup — the name beside
- * it is the content — so the letter's contrast against its own disc is
- * a legibility concern rather than an accessibility one, and it holds
- * in both themes without an override.
- */
-.vp-occ-orgdot {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: hsl(var(--vp-orgdot-hue, 0) 45% 35%);
-    font-size: 0.62rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--bs-white);
-    text-decoration: none;
-}
-
-/*
- * A soft-deleted row is struck through, but its disc is a shape rather
- * than text and a line across it just makes it hard to read.
- */
-tr.vp-occ-deleted .vp-occ-orgdot {
-    text-decoration: none;
-}
-
-/*
- * A brushable date strip in the occurrence rail.
- *
- * 32px, against the History chart's 64px: one of these sits in a
- * `col-lg-3` rail alongside nine facet groups, a sparkline and a page
- * of controls, and at History's height it would push the row-state
- * group off the bottom of most screens. It is a range picker that shows
- * its shape, not a chart — no gridlines, no zoom.
- *
- * It does carry a date axis, which the sentence above used to rule out
- * along with the rest. A strip with no axis says *where in this span*
- * and cannot say *when*, and the two dates underneath name the ends
- * only: a bar four fifths of the way along nine years read as recent
- * and no more precisely than that. `.vp-timebrush-scale` is the answer
- * and it costs 19px.
- *
- * `position: relative` because `.misp-brush` pins itself to this box.
+ * A brushable date strip: a range picker that shows its shape, not a
+ * chart. `position: relative` because `.misp-brush` pins itself to it.
  */
 .vp-timebrush {
     position: relative;
@@ -3942,28 +3792,6 @@ tr.vp-occ-deleted .vp-occ-orgdot {
      * rather than `paint(…, null, …)`, which means something else.
      */
     --misp-brush-dim: 80%;
-}
-
-/*
- * The date axis under the strip, sharing `.vp-spark-scale`'s geometry:
- * one slot per bar with the bars' own flex rules, because a tick placed
- * at `i / n` of the width sits nowhere near its bar the moment the bars
- * stop filling the row.
- *
- * Two things the reporting card's axis does not need. Its slots cap at
- * 22px because its bars do; these bars have no cap, so a pane of six
- * monthly buckets would draw its ticks bunched at the left while the
- * bars above them spread. And `min-width` matches the bars' own, so a
- * strip dense enough to hit it stays aligned.
- */
-.vp-timebrush-scale {
-    margin-top: 0;
-    margin-bottom: 4px;
-}
-
-.vp-timebrush-scale .vp-spark-slot {
-    max-width: none;
-    min-width: 1px;
 }
 
 /*

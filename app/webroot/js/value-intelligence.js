@@ -2194,33 +2194,6 @@
         button.textContent = button.getAttribute(open ? 'data-less' : 'data-more');
     }
 
-    /* ==============================================================
-     * The Occurrences tab's table
-     * --------------------------------------------------------------
-     * Two controls the faceted list does not own: which columns are
-     * showing, and what the current selection spans.
-     * ============================================================== */
-
-    /**
-     * Twelve columns, nine of them shown, and the panel header states
-     * the ratio — so a toggle has to move the heading with the cells
-     * and correct the ratio, or the table quietly stops matching the
-     * number above it.
-     *
-     * @param {Element} box A [data-vp-col] checkbox
-     */
-    function toggleColumn(box) {
-        var panel = box.closest('.vp-panel');
-        if (!panel) {
-            return;
-        }
-        panel.querySelectorAll('.' + box.dataset.vpCol)
-            .forEach(function (cell) {
-                cell.classList.toggle('d-none', !box.checked);
-            });
-        setText(panel, '[data-vp-col-shown]',
-            panel.querySelectorAll('[data-vp-col]:checked').length);
-    }
 
 
 
@@ -10234,10 +10207,6 @@
                     refreshEnrichTray(enrichPanel);
                 }
                 return;
-            }
-
-            if (event.target.matches && event.target.matches('[data-vp-col]')) {
-                toggleColumn(event.target);
             }
 
             if (event.target.matches
