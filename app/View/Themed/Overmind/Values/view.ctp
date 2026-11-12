@@ -18,6 +18,10 @@ echo $this->element('genericElements/assetLoader', array(
     'css' => array(
         'value-palette', 'value-widgets', 'misp-brush', 'misp-matrix',
         'org-tile', 'tile-drawer', 'value-intelligence', 'value-new-event',
+        // The Overview's occurrence card is the global attribute table.
+        'attributes-index',
+        // Its tags card is the event overview's Context card.
+        'event-overview',
     ),
     'js' => array(
         'Chart.min', 'misp-brush', 'misp-matrix', 'tile-drawer',

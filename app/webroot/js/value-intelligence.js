@@ -2103,6 +2103,97 @@
         });
     }
 
+    /**
+     * The tags card's label filter, as the event Context card's. A
+     * namespace or galaxy that matches keeps all its members.
+     *
+     * @param {Element} input
+     */
+    function filterContextLabels(input) {
+        var card = input.closest('.vp-context');
+        if (!card) {
+            return;
+        }
+        var needle = input.value.trim().toLowerCase();
+        var hit = function (text) {
+            return needle === ''
+                || String(text || '').toLowerCase().indexOf(needle) !== -1;
+        };
+        card.querySelectorAll('.eo-rows .hg-unit, .eo-rows .eo-absent')
+            .forEach(function (el) {
+                var group = el.closest('.hg-group');
+                var head = group ? group.querySelector('.hg-head') : null;
+                var shown = hit(el.getAttribute('data-tag-name'))
+                    || hit(el.textContent)
+                    || (head !== null && hit(head.textContent));
+                el.classList.toggle('d-none', !shown);
+            });
+        card.querySelectorAll('.eo-rows .hg-group').forEach(function (group) {
+            group.classList.toggle('d-none',
+                !group.querySelector('.hg-unit:not(.d-none)'));
+        });
+        card.querySelectorAll('.eo-rows .eo-tech-group').forEach(function (group) {
+            var more = group.querySelector('[data-vp-tech-more]');
+            var open = !!more && more.getAttribute('aria-expanded') === 'true';
+            var whole = hit(group.querySelector('.eo-tech-galaxy').textContent);
+            var shown = 0;
+            group.querySelectorAll('.eo-techniques li').forEach(function (li) {
+                var visible = needle === ''
+                    ? !li.classList.contains('vp-tech-extra') || open
+                    : whole || hit(li.textContent) || hit(li.title);
+                li.hidden = !visible;
+                shown += visible ? 1 : 0;
+            });
+            group.classList.toggle('d-none', shown === 0);
+            if (more) {
+                more.classList.toggle('d-none', needle !== '');
+            }
+        });
+    }
+
+    /**
+     * The Analyst data card's filter, as the event Assessment card's.
+     * A root whose replies match stays.
+     *
+     * @param {Element} input
+     */
+    function filterAnalystPreview(input) {
+        var card = input.closest('[data-vp-analyst-preview]');
+        if (!card) {
+            return;
+        }
+        var needle = input.value.trim().toLowerCase();
+        var shown = 0;
+        card.querySelectorAll('[data-ad-entry]').forEach(function (el) {
+            var hit = needle === ''
+                || el.textContent.toLowerCase().indexOf(needle) !== -1;
+            el.classList.toggle('d-none', !hit);
+            shown += hit ? 1 : 0;
+        });
+        var none = card.querySelector('[data-vp-analyst-none]');
+        if (none) {
+            none.classList.toggle('d-none', shown > 0);
+        }
+    }
+
+    /**
+     * Shows or folds a galaxy's techniques past the first few.
+     *
+     * @param {Element} button
+     */
+    function toggleTechniques(button) {
+        var group = button.closest('.eo-tech-group');
+        var open = button.getAttribute('aria-expanded') !== 'true';
+        group.querySelectorAll('.vp-tech-extra').forEach(function (li) {
+            li.hidden = !open;
+        });
+        if (!button.hasAttribute('data-more')) {
+            button.setAttribute('data-more', button.textContent);
+        }
+        button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        button.textContent = button.getAttribute(open ? 'data-less' : 'data-more');
+    }
+
     /* ==============================================================
      * The Occurrences tab's table
      * --------------------------------------------------------------
@@ -9977,6 +10068,12 @@
                 return;
             }
 
+            var techMore = event.target.closest('[data-vp-tech-more]');
+            if (techMore) {
+                toggleTechniques(techMore);
+                return;
+            }
+
             var threatPill = event.target.closest(
                 '[data-vp-threat-filter]'
             );
@@ -10220,6 +10317,14 @@
                 filterFacetGroup(event.target);
                 return;
             }
+            if (event.target.matches('[data-vp-label-filter]')) {
+                filterContextLabels(event.target);
+                return;
+            }
+            if (event.target.matches('[data-vp-analyst-filter]')) {
+                filterAnalystPreview(event.target);
+                return;
+            }
             if (event.target.matches('[data-vp-e-filter]')) {
                 filterEnrichResult(event.target);
                 return;
@@ -10251,6 +10356,13 @@
             initTimeline(event.target);
             initHistory(event.target);
             initRelationSummary(event.target);
+            // The shared analyst thread: clamped bodies and the tall fold.
+            if (window.AnalystRail) {
+                window.AnalystRail.refresh(event.target);
+            }
+            if (typeof window.initCollapsibleSections === 'function') {
+                window.initCollapsibleSections(event.target);
+            }
         });
 
         refreshOccurrences();

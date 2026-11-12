@@ -330,6 +330,18 @@ a.vp-fact:hover .vp-fact-value {
     white-space: nowrap;
 }
 
+/* A link in a panel's description, to the tab that holds the rest. */
+.vp-head-link {
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.vp-head-link:hover,
+.vp-head-link:focus-visible {
+    text-decoration: underline;
+}
+
 /* One width per slot, so the pager does not jump as the pages grow. */
 [data-vp-pager] .page-link {
     min-width: 2.25rem;
@@ -632,214 +644,57 @@ tr.vp-occ-deleted td {
  * in the table, because it is a statement about the query, not a row.
  */
 /* ==================================================================
- * Tags and galaxies
+ * Tags and galaxies: the event overview's Context card
+ * (event-overview.css). Only what the value adds is styled here.
  * ================================================================== */
 
-.vp-tax {
-    display: flex;
-    gap: 16px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--bs-border-color);
+/* Wider than the event's card, so the techniques take more columns. */
+.vp-context .eo-techniques {
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
 }
 
-.vp-tax:last-child {
-    border-bottom: 0;
-}
-
-.vp-tax-name {
-    display: flex;
-    flex: 0 0 130px;
-    align-items: center;
-    gap: 6px;
-    padding-top: 3px;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--bs-secondary-color);
-    word-break: break-word;
-}
-
-.vp-tax-body {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.vp-tax-tags {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px;
-}
-
-/*
- * A tag on the context card. No count beside it: the card folds two
- * scopes counted in two units into one list, so what each was read as
- * is in the chip's title rather than in a number that would mean
- * neither.
- */
-.vp-tag {
-    display: inline-flex;
-    align-items: center;
-}
-
-/*
- * Two occurrences carrying contradictory tags from one taxonomy. Shown,
- * never resolved: which of them is right is not a display decision.
- */
-.vp-conflict {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border: 1px solid var(--bs-warning);
-    border-radius: 999px;
-    background: var(--bs-body-bg);
-    background: color-mix(in srgb, var(--bs-warning) 12%,
-        var(--bs-body-bg));
+/* A pinned handling label's others, named in its title. */
+.vp-tag-more {
+    align-self: center;
+    margin-left: 4px;
     font-size: 0.7rem;
-    font-weight: 600;
     white-space: nowrap;
-    color: var(--bs-body-color);
+    color: var(--bs-secondary-color);
 }
 
-.vp-conflict-dot {
+/* An ordinal taxonomy's position, beside its one label. */
+.vp-scale-mini {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 6px;
+}
+
+.vp-scale-mini > i {
     width: 7px;
     height: 7px;
-    border-radius: 50%;
-    background: var(--bs-warning);
-}
-
-/* An ordinal taxonomy — admiralty-scale and its kin — as a position. */
-.vp-scale {
-    margin-bottom: 8px;
-}
-
-.vp-scale-track {
-    display: flex;
-    gap: 3px;
-}
-
-.vp-scale-seg {
-    flex: 1 1 0;
-    height: 6px;
+    border: 1px solid var(--bs-border-color);
     border-radius: 2px;
     background: var(--bs-secondary-bg);
 }
 
-.vp-scale-seg-on {
+.vp-scale-mini > i.is-on {
+    border-color: var(--primary);
     background: var(--primary);
 }
 
-.vp-scale-reading {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+.vp-tech-more {
     margin-top: 4px;
-    font-size: 0.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.74rem;
+    color: var(--bs-link-color);
 }
 
-/*
- * What a galaxy holds beyond the six the card draws. Words rather than
- * a `+N` chip: it is a statement about the group, not another cluster.
- */
-.vp-galaxy-more {
-    align-self: center;
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
-}
-
-/*
- * A dimension the reader pinned and this value carries nothing of.
- *
- * Drawn as an outline rather than as a chip, because it is the one
- * thing on this card that is not a label somebody applied: a filled
- * chip reading `tlp` would be read as a tag at a glance, which is the
- * opposite of what the row says. Muted for the same reason, and it
- * still says *not recorded* in words — a colour alone cannot carry
- * "this is missing" to a reader who has never seen the row filled.
- */
-.vp-tax-absent .vp-tax-name {
-    color: var(--bs-secondary-color);
-}
-
-.vp-absent {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    padding: 2px 9px;
-    border: 1px dashed var(--bs-border-color);
-    border-radius: 999px;
-    background: transparent;
-}
-
-.vp-absent-name {
-    font-family: var(--bs-font-monospace);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--bs-secondary-color);
-}
-
-.vp-absent-note {
-    font-size: 0.68rem;
-    font-style: italic;
-    color: var(--bs-secondary-color);
-}
-
-/*
- * What a pinned handling group did not draw. The cell shows the most
- * restrictive label of the mixture, so this counts the others and names
- * them in its title — it is a statement about the group rather than
- * another label, which is why it is not a chip.
- */
-.vp-tag-more {
-    align-self: center;
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
-}
-
-/*
- * The taxonomies flowed into one band instead of a row each, taken when
- * the value carries more of them than the card can spend 49px apiece
- * on. No name column — each group carries its own name inline — so the
- * body owns the row.
- */
-.vp-tax-flat > .vp-tax-body {
-    flex: 1 1 100%;
-}
-
-.vp-tax-flat .vp-tax-tags {
-    gap: 4px 14px;
-}
-
-/* One taxonomy and its labels, wrapping as a unit. */
-.vp-tax-group {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 3px;
-    padding-left: 8px;
-    border-left: 2px solid var(--bs-border-color);
-}
-
-.vp-tax-group-name {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-bottom: 4px;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.7rem;
-    font-weight: 600;
-    white-space: nowrap;
-    color: var(--bs-secondary-color);
-}
-
-.vp-tax-galaxies .vp-tax-group-name > .misp-icon {
-    color: var(--galaxy);
-}
-
-/* The galaxy heading its clusters, in the taxonomies' own name column. */
-.vp-tax-galaxies > .vp-tax-name > .misp-icon {
-    color: var(--galaxy);
+.vp-tech-more:hover,
+.vp-tech-more:focus-visible {
+    text-decoration: underline;
 }
 
 /* ==================================================================
@@ -892,66 +747,56 @@ tr.vp-occ-deleted td {
     color: var(--bs-secondary-color);
 }
 
-.vp-signals {
+/*
+ * The Assessment card's strongest signals: the tab's ledger rows
+ * (.vp-ledger-line, -dir, -points) laid out for a rail column.
+ */
+.vp-sigs {
+    --vp-ledger-adds: var(--vp-weighs-carries);
+    --vp-ledger-cuts: var(--vp-weighs-lacks);
     display: flex;
     flex-direction: column;
-    gap: 6px;
 }
 
-/*
- * One row of the ledger. The arrow carries the direction, the tint only
- * reinforces it — the page has to survive being read in greyscale.
- */
-.vp-signal {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 6px 8px;
-    border-left: 3px solid var(--bs-border-color);
-    border-radius: 4px;
-    background: var(--bs-secondary-bg);
-    font-size: 0.78rem;
+.vp-sig {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 8px;
+    padding: 7px 0;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    font-size: 0.8rem;
+    line-height: 1.35;
 }
 
-/*
- * The Overview card lists the ledger's heaviest rows, so it takes the
- * ledger's pair and not the lean's — same argument as
- * `.vp-ledger-table`'s: these rows weigh the record, and the record
- * weighs the same under either reading.
- */
-.vp-signal-up {
-    --vp-ledger-adds: var(--vp-weighs-carries);
-    --vp-ledger-cuts: var(--vp-weighs-lacks);
-    border-left-color: var(--vp-ledger-adds);
+.vp-sig:first-child {
+    border-top: 0;
+    padding-top: 2px;
 }
 
-.vp-signal-down {
-    --vp-ledger-adds: var(--vp-weighs-carries);
-    --vp-ledger-cuts: var(--vp-weighs-lacks);
-    border-left-color: var(--vp-ledger-cuts);
+.vp-sig .vp-ledger-dir {
+    width: auto;
+    font-size: 0.62rem;
 }
 
-.vp-signal-arrow {
-    flex: 0 0 auto;
-    line-height: 1.4;
-}
-
-.vp-signal-up .vp-signal-arrow {
-    color: var(--vp-ledger-adds);
-}
-
-.vp-signal-down .vp-signal-arrow {
-    color: var(--vp-ledger-cuts);
-}
-
-.vp-signal-text {
-    flex: 1 1 auto;
+.vp-sig-name {
     min-width: 0;
+    font-weight: 600;
 }
 
-.vp-signals-rest {
+.vp-sig-evidence {
+    grid-column: 2 / -1;
+    margin-top: 1px;
+    overflow: hidden;
     font-size: 0.72rem;
-    font-style: italic;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--bs-secondary-color);
+}
+
+.vp-sigs-rest {
+    margin-top: 2px;
+    font-size: 0.72rem;
     color: var(--bs-secondary-color);
 }
 
@@ -1197,49 +1042,268 @@ tr.vp-occ-deleted td {
 /* ==================================================================
  * Reporting — who put the value here, and when
  * ------------------------------------------------------------------
- * Two halves of one card, and they are halves rather than two cards
- * because neither fills a col-lg-9 on its own and both answer *where
- * did this value come from*. The grid collapses to one column below
- * lg, where the rail stacks under the main column anyway and a 50%
- * month strip would be a few pixels a bar.
+ * Two halves of one card: when (three facts and a bar a month) and who
+ * (a table of organisations), stacked when the card is too narrow.
  * ================================================================== */
 
-.vp-reporting {
+.vp-rep {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
     gap: 1.5rem;
     --vp-bar-color: var(--vp-occ-attribute);
 }
 
-@media (max-width: 991.98px) {
-    .vp-reporting {
-        grid-template-columns: 1fr;
+/* Side by side while both halves fit, one under the other below that. */
+.vp-rep-wrap {
+    container-type: inline-size;
+}
+
+@container (max-width: 960px) {
+    .vp-rep {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
-/*
- * Three times the sightings spark, because this axis is years rather
- * than ninety days: the reading is the shape of a decade, and 40px of
- * height over eighty-five bars flattens every burst into the same
- * stripe. The height is free — the split beside it is the taller half
- * of the card on every value the instance has — and it is spent on the
- * half that has something to say with it.
- */
-.vp-reporting .vp-spark {
-    height: 120px;
-    gap: 1px;
-    justify-content: flex-start;
+.vp-rep-when,
+.vp-rep-who {
+    min-width: 0;
 }
 
-/*
- * A bar has a widest it may be, which `.vp-spark` does not need and
- * this does: the sightings strip is always ninety buckets, while this
- * one is however many months the value has existed — and `sage.png` has
- * existed for one. At `flex: 1 1 0` that single month drew a 560×120
- * slab of solid green, which is not a chart of anything. Capped, one
- * month is one bar and the empty axis beside it is the reading.
- */
-.vp-reporting .vp-spark-bar,
+.vp-rep-who {
+    overflow-x: auto;
+}
+
+.vp-rep-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.vp-rep-fact {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+}
+
+.vp-rep-fact small {
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+}
+
+.vp-rep-fact b,
+.vp-rep-fact span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-rep-fact b {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--bs-emphasis-color);
+}
+
+.vp-rep-fact span {
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+}
+
+/* A bar a month across the whole width, its count over it. */
+.vp-rep-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 110px;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.vp-rep-chart.is-dense,
+.vp-rep-axis.is-dense {
+    gap: 1px;
+}
+
+.vp-rep-col {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    height: 100%;
+}
+
+.vp-rep-bar {
+    display: block;
+    width: 100%;
+    height: max(3px, calc(var(--h) - 16px));
+    border-radius: 2px 2px 0 0;
+    background: var(--vp-bar-color);
+}
+
+.vp-rep-col.is-zero .vp-rep-bar {
+    height: 2px;
+    border-radius: 0;
+    background: var(--bs-border-color);
+}
+
+.vp-rep-col:hover .vp-rep-bar {
+    filter: brightness(1.15);
+}
+
+.vp-rep-n {
+    margin-bottom: 3px;
+    font-size: .68rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-rep-col.is-peak .vp-rep-n {
+    font-weight: 700;
+    color: var(--bs-emphasis-color);
+}
+
+/* Each month under its bar, the year under its January; past a year and a half, the years alone. */
+.vp-rep-axis {
+    display: flex;
+    gap: 3px;
+    margin-top: 4px;
+}
+
+.vp-rep-tick {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    font-size: .64rem;
+    line-height: 1.3;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+.vp-rep-tick small {
+    font-size: .62rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.vp-rep-axis.is-years .vp-rep-tick {
+    align-items: flex-start;
+}
+
+.vp-rep-axis.is-years .vp-rep-tick.is-year:not(:first-child) {
+    border-left: 1px solid var(--bs-border-color);
+    padding-left: 2px;
+}
+
+.vp-rep-ends {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+    font-size: .64rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Who: an index table of organisations. */
+/* An organisation in a value page table (Values/View/value_org_link). */
+.vp-orglink {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    color: var(--bs-body-color);
+    font-weight: 600;
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+.vp-rep-org {
+    white-space: nowrap;
+}
+
+.vp-orglink > span {
+    max-width: 10rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-orglink:hover > span {
+    text-decoration: underline;
+}
+
+.vp-rep-first {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+    color: var(--bs-primary-text-emphasis);
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.vp-rep-occ,
+.vp-rep-ids,
+.vp-rep-period {
+    white-space: nowrap;
+}
+
+.vp-rep-occ b {
+    margin-left: 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-rep-track {
+    display: inline-block;
+    width: 56px;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--bs-secondary-bg);
+    vertical-align: middle;
+}
+
+.vp-rep-track > span {
+    display: block;
+    height: 100%;
+    background: var(--vp-bar-color);
+}
+
+.vp-rep-ids {
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-rep-ids i {
+    margin-right: 4px;
+}
+
+.vp-rep-period {
+    color: var(--bs-secondary-color);
+}
+
+.vp-rep-rest {
+    margin-top: 8px;
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+}
+
+/* ------------------------------------------------------------------
+ * The month strips' year scale (the Occurrences tab's time pane)
+ * ------------------------------------------------------------------ */
+
 .vp-spark-slot {
     max-width: 22px;
 }
@@ -1288,95 +1352,6 @@ tr.vp-occ-deleted td {
     line-height: 1;
     color: var(--bs-secondary-color);
     white-space: nowrap;
-}
-
-/*
- * The strip and the split are read together — *ADMIN holds twelve of
- * these, and they landed in that spike* — so the two start on the same
- * line rather than each floating in its own half.
- */
-.vp-reporting-when,
-.vp-reporting-who {
-    min-width: 0;
-}
-
-.vp-reporting-rest {
-    margin-top: 6px;
-    font-size: 0.68rem;
-    color: var(--bs-secondary-color);
-}
-
-/*
- * The `to_ids` stance, in the vocabulary the Assessment tab's *Who says
- * what* column uses. A chip rather than a word so the eye can run down
- * the column.
- *
- * **It wears MISP's IDS shield and MISP's IDS colours**, because the
- * occurrence table two cards above draws the per-row flag with
- * `fa-shield-halved` in `text-warning` when it is set and
- * `text-secondary` when it is not. `yes` was the attribute green here
- * until the shield arrived, which put one fact on one tab in two
- * colours; amber is *IDS active* on both surfaces now.
- *
- * `mixed` keeps amber and takes a **dashed** edge rather than a third
- * hue — the rule the relevance chip already follows, direction in the
- * geometry rather than in a shade between two colours. An organisation
- * holding the value both ways has not made half a decision, it has made
- * none.
- */
-.vp-stance {
-    display: inline-flex;
-    flex: 0 0 auto;
-    gap: 3px;
-    align-items: center;
-    justify-content: center;
-    min-width: 3.6rem;
-    padding: 0 5px;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-weight: 600;
-    line-height: 1.4;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-/*
- * The shield is the chip's own colour and never a second signal: it
- * names the flag, the chip reads it.
- */
-.vp-stance i {
-    font-size: 0.85em;
-}
-
-.vp-stance-yes {
-    border-color: color-mix(in srgb, var(--bs-warning) 55%, transparent);
-    background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
-    color: var(--vp-stance-on);
-}
-
-.vp-stance-no {
-    border-color: var(--bs-border-color);
-    background: var(--bs-secondary-bg);
-    color: var(--bs-secondary-color);
-}
-
-.vp-stance-mixed {
-    border-style: dashed;
-    border-color: color-mix(in srgb, var(--bs-warning) 55%, transparent);
-    background: color-mix(in srgb, var(--bs-warning) 8%, transparent);
-    color: var(--vp-stance-on);
-}
-
-/*
- * Unreachable — `orgStanceFor` counts every non-deleted row into one of
- * the two sums — and kept as a guard rather than as a state anybody
- * will see.
- */
-.vp-stance-none {
-    border-style: dashed;
-    border-color: var(--bs-border-color);
-    color: var(--bs-secondary-color);
 }
 
 /* ==================================================================
@@ -1664,8 +1639,6 @@ tr.vp-occ-deleted td {
  * carry structure rather than free text and get a floor instead.
  */
 .vp-panel .idx-col-event,
-.vp-panel .idx-col-value_event_ref,
-.vp-panel .idx-col-organisation,
 .vp-panel .idx-col-value_object_context,
 .vp-panel .idx-col-tag_list {
     overflow-wrap: normal;
@@ -1684,28 +1657,60 @@ tr.vp-occ-deleted td {
 }
 
 /* ------------------------------------------------------------------
- * The Overview preview's own density
+ * The Overview's occurrence card
  * ------------------------------------------------------------------
- * Scoped to `[data-vp-occurrences]` and nowhere else: the Occurrences
- * tab is a table a reader came to read and keeps MISP's row height,
- * while this is eight rows of sample on a tab about something else.
- *
- * The type badge is what the rule is for. At the shared size its
- * bordered box measures 34px against the 18–26px every other cell in
- * the row draws, so it — not the text — was setting the row height, and
- * with it the card's. Trimmed to the line it contains, the row falls
- * from 51px to about 40 and the card from 540 to the rail's budget.
+ * The global attribute table (`ix-table ai-table`), its pieces drawn by
+ * their shared elements. Only the event reference is laid out here: its
+ * id, then the event icon.
  * ------------------------------------------------------------------ */
 
-[data-vp-occurrences] td {
-    padding-top: 5px;
-    padding-bottom: 5px;
+.vp-occ-table td.vp-occ-event {
+    width: 1%;
 }
 
-[data-vp-occurrences] .idx-col-type p {
-    padding: 0 5px !important;
-    font-size: 0.75rem;
+.vp-occ-event-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
 }
+
+/* One chip each here, under the Occurrences tab's floors. */
+.vp-panel .vp-occ-table .idx-col-value_tag_list {
+    min-width: 9rem;
+}
+
+.vp-panel .vp-occ-table .idx-col-value_cluster_list {
+    min-width: 9rem;
+}
+
+/* A folded galaxy ellipsizes its name rather than widening the column. */
+.vp-panel .vp-occ-table .idx-col-value_cluster_list .hg-fold {
+    max-width: 13rem;
+}
+
+.vp-panel .vp-occ-table .idx-col-value_object_context {
+    min-width: 8rem;
+}
+
+/* Narrower than its columns, the table scrolls rather than losing its menu. */
+[data-vp-occ-table] {
+    overflow-x: auto;
+}
+
+/* As the ID column of the other indexes. */
+.vp-occ-event-id {
+    font-family: var(--bs-font-monospace);
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+.vp-occ-event-id:hover {
+    color: var(--bs-body-color);
+    text-decoration: underline;
+}
+
 
 /* ------------------------------------------------------------------
  * The Tags column, once it carries two scopes
@@ -1746,15 +1751,6 @@ tr.vp-occ-deleted td {
 }
 
 /*
- * Tighter on the Overview's preview, which draws one chip and a `+N` in
- * a 211px cell: at the tab's 12rem the pair wrapped to two lines on
- * every tagged row.
- */
-[data-vp-occurrences] .idx-col-value_tag_list .badge {
-    max-width: 9rem;
-}
-
-/*
  * The Galaxies column, on the Tags column's reasoning and with its own
  * numbers. `table-layout: auto` gave it **101px** on a table whose
  * widest cell is an ATT&CK technique — *Exfiltration Over Other
@@ -1771,64 +1767,8 @@ tr.vp-occ-deleted td {
     min-width: 15rem;
 }
 
-/*
- * The compact event reference — `Fields/value_event_ref`, and the
- * element says why the badge is not used here.
- *
- * The id keeps the link and the info does not: two anchors to one
- * event on one line is one target the eye has to choose between, and
- * the id is the shorter, steadier one to aim at. The info is what the
- * row is *about*, so it takes the width and the ellipsis.
- */
-.vp-event-ref {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    min-width: 0;
-    font-size: 0.75rem;
-}
-
-.vp-event-ref-id {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: baseline;
-    gap: 3px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--primary);
-    text-decoration: none;
-}
-
-.vp-event-ref-id:hover {
-    text-decoration: underline;
-}
-
-/*
- * `max-width` is what actually sets the column's width, and it is doing
- * a table's job rather than a text one. `table-layout: auto` sizes a
- * cell from its max-content, and a nowrap title has no max-content
- * short of the whole string — so *Dated relations bench - resolution
- * history for 8.8.8.8 and 1.1.1.1* took 460px of a 1176px card, pushed
- * Tags off the edge and squeezed `ip-dst` into two lines, which put
- * back most of the row height the one-line reference had just saved.
- * Fifteen rems leaves every other column its natural width on this
- * card's eight.
- */
-.vp-event-ref-info {
-    overflow: hidden;
-    flex: 1 1 auto;
-    max-width: 15rem;
-    color: var(--bs-secondary-color);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .vp-panel .idx-col-event {
     min-width: 13rem;
-}
-
-.vp-panel .idx-col-organisation {
-    min-width: 8rem;
 }
 
 .vp-panel .idx-col-value_object_context {
@@ -4808,25 +4748,6 @@ tr.vp-occ-deleted .vp-occ-orgdot {
 
 [data-misp-mode="dark"] {
     --vp-occ-attribute: #97CC04;  /* --attribute, legible as it comes */
-}
-
-/*
- * *IDS active*, for the Reporting card's stance chip, on the same rule.
- *
- * The occurrence table draws the per-row flag as `text-warning`, which
- * is `#ffc107` — a fine **glyph** colour and a hopeless one for 0.6rem
- * uppercase text: **1.63:1** on the card's light ground. Darkened to
- * **5.59:1**, which is the band `--vp-occ-attribute` sits in at 5.86;
- * on dark the hue carries itself at **9.46:1**. The shield inside the
- * chip takes the same token, so the chip and the table's shields still
- * read as one colour rather than two ambers.
- */
-:root {
-    --vp-stance-on: #8a6000;  /* --bs-warning #ffc107, darkened */
-}
-
-[data-misp-mode="dark"] {
-    --vp-stance-on: #ffc107;  /* --bs-warning, legible as it comes */
 }
 
 .vp-rel-k-co { --vp-rel-color: var(--vp-rel-co); }
@@ -8878,28 +8799,9 @@ th.vp-rel-num {
     text-align: center;
 }
 
-/* ------------------------------------------------------------------
- * The same bar, on the Overview's Analyst data card
- * ------------------------------------------------------------------
- * Phase 35. The block is unchanged — same element, same segments,
- * same caption — and only its surroundings differ: on the standing
- * panel it opens a `.p-3` that continues into the ledger, here it is
- * the top of a card whose body is its own padded list.
- *
- * So the wrapper pads three sides and the block's own bottom padding
- * and rule become the separator, rather than stacking a 16px wrapper
- * gap on top of a 14px block margin on top of the list's own 16px
- * padding — which is 61px of nothing between the caption and the
- * first note.
- * ------------------------------------------------------------------ */
-
-.vp-analyst-split {
-    padding: 1rem 1rem 0;
-}
-
-.vp-analyst-split .vpa-tugblock {
-    margin-bottom: 0;
-    padding-bottom: 0.75rem;
+/* The Overview's Analyst data card: the event overview's Assessment card. */
+.vp-analyst-card {
+    container: eo-assessment / inline-size;
 }
 
 /* ------------------------------------------------------------------

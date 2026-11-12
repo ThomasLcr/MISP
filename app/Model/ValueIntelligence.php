@@ -23,6 +23,7 @@ App::uses('ValueSummaryTool', 'Tools/ValueIntelligence');
 App::uses('ValueContestedTool', 'Tools/ValueIntelligence');
 App::uses('ValueFactsTool', 'Tools/ValueIntelligence');
 App::uses('ValueContextTool', 'Tools/ValueIntelligence');
+App::uses('EventContextTool', 'Tools/EventOverview');
 App::uses('ModuleLocality', 'Tools');
 App::uses('ModuleRole', 'Tools');
 App::uses('WarninglistCategory', 'Tools');
@@ -1760,6 +1761,8 @@ class ValueIntelligence extends AppModel
         // After the org attach, so the event-tag read is over the rows
         // that survived it rather than over the rows fetched.
         $this->attachEventTags($rows);
+        // The card's Galaxy column, read off both tag scopes as the tab's is.
+        $this->attachClusters($user, $rows);
         $this->attachProposalCounts($rows);
         $this->attachSpellings($rows, $value);
         $this->attachEffectiveDistribution($user, $rows);
@@ -1885,6 +1888,8 @@ class ValueIntelligence extends AppModel
                     ? $names[$id]
                     : __('Unknown organisation'),
                 'occurrences' => $count,
+                // How many of them it flagged for IDS.
+                'ids' => (int)$row[0]['to_ids_yes'],
                 'stance' => $this->verdictStanceWord(array(
                     'to_ids_yes' => $row[0]['to_ids_yes'],
                     'to_ids_no' => $row[0]['to_ids_no'],
@@ -1920,11 +1925,25 @@ class ValueIntelligence extends AppModel
             return strcasecmp($a['name'], $b['name']);
         });
 
+        // Who reported it first and last, over every organisation, capped or not.
+        $first = null;
+        $last = null;
+        foreach ($orgs as $org) {
+            if ($org['oldest'] !== null && ($first === null || $org['oldest'] < $first['at'])) {
+                $first = array('at' => $org['oldest'], 'org' => $org);
+            }
+            if ($org['newest'] !== null && ($last === null || $org['newest'] > $last['at'])) {
+                $last = array('at' => $org['newest'], 'org' => $org);
+            }
+        }
+
         return array(
             'value' => $value,
             'reporting' => array(
                 'orgs' => array_slice($orgs, 0, self::REPORTING_ORG_CAP),
                 'orgs_total' => count($orgs),
+                'first' => $first,
+                'last' => $last,
                 'occurrences' => $total,
                 'months' => $this->reportingMonths(
                     $valueModel->activityMonthsFor($user, $value, $options)
@@ -2118,9 +2137,9 @@ class ValueIntelligence extends AppModel
          * request — and on a stock instance it changes nothing, because
          * `default-v1` declares no list at all.
          */
-        $plan = ValueLabelPriority::planFor(
-            ClassRegistry::init('AnalystProfile')->resolveFor($user)
-        );
+        $analystProfile = ClassRegistry::init('AnalystProfile')
+            ->resolveFor($user);
+        $plan = ValueLabelPriority::planFor($analystProfile);
         if (empty($tags) && empty($galaxyTags)) {
             return array(
                 'value' => $value,
@@ -2142,6 +2161,14 @@ class ValueIntelligence extends AppModel
                 $galaxyTags,
                 $this->galaxyClusters($user, $galaxyTags)
             );
+        // The event overview's Context rows, so both cards sort alike.
+        $attribution = EventContextTool::attributionTypes($analystProfile);
+        foreach ($galaxies as $at => $galaxy) {
+            $galaxies[$at]['row'] = EventContextTool::rowOf(
+                $galaxy['key'],
+                $attribution
+            );
+        }
         return array(
             'value' => $value,
             'tags' => ValueLabelPriority::order(
@@ -12540,10 +12567,8 @@ class ValueIntelligence extends AppModel
      * two-year-old note above yesterday's opinion. One union, read
      * newest first, is what the thread beside it already does.
      *
-     * Roots only, and proposals excluded. A reply is a statement about
-     * the item above it rather than about the value, and the card has
-     * no room to draw what it answers — the same exclusion the standing
-     * panel's aggregate makes, and for the same reason.
+     * Proposals excluded. Replies stay under the item they answer, as
+     * the event overview's thread folds them.
      *
      * @param array $thread From `analystContext`
      * @return array
@@ -12555,10 +12580,6 @@ class ValueIntelligence extends AppModel
             if ($item['kind'] === 'proposal') {
                 continue;
             }
-            // The replies go with them, so "roots only" is a property
-            // of what leaves this method rather than of what the
-            // template remembers not to draw.
-            unset($item['children'], $item['max_depth_reached']);
             $items[] = $item;
             if (count($items) >= self::ANALYST_PREVIEW_CAP) {
                 break;
@@ -13527,6 +13548,10 @@ class ValueIntelligence extends AppModel
         }
         return array(
             'kind' => $isOpinion ? 'opinion' : 'note',
+            'id' => isset($row['id']) ? (int)$row['id'] : null,
+            'uuid' => isset($row['uuid']) ? $row['uuid'] : null,
+            'created' => $row['created'],
+            'can_edit' => !empty($row['_canEdit']),
             'org' => $org,
             'org_key' => $key,
             'org_id' => $orgId,

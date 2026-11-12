@@ -15,6 +15,8 @@
  *   $peek        : name every top-level entry for a data-collapse-peek clamp
  *   $showEmpty   : say so when there is nothing (default true); false renders
  *                  nothing, for a host with an empty state of its own
+ *   $reply       : offer the reply buttons (default true); edit and delete
+ *                  stay either way
  */
 App::uses('ClassRegistry', 'Utility');
 App::uses('DistributionLevel', 'Tools');
@@ -24,6 +26,7 @@ $objectUuid = $objectUuid ?? '';
 $limit = !empty($limit);
 $peek = !empty($peek);
 $showEmpty = !isset($showEmpty) || $showEmpty;
+$reply = !isset($reply) || $reply;
 if (!isset($analystData) && ($objectType === '' || $objectUuid === '')) {
     return;
 }
@@ -188,12 +191,12 @@ $replyLabels = [
     'Relationship' => [__('Add a note on this relationship'), __('Add an opinion on this relationship')],
 ];
 
-$actions = function ($item, $type, $nested) use ($canAdd, $baseurl, $button, $replyLabels) {
+$actions = function ($item, $type, $nested) use ($canAdd, $baseurl, $button, $replyLabels, $reply) {
     if (!$canAdd || empty($item['uuid'])) {
         return '';
     }
     $buttons = [];
-    if (isset($replyLabels[$type])) {
+    if ($reply && isset($replyLabels[$type])) {
         $base = $baseurl . '/analystData/add/%s/' . rawurlencode($item['uuid']) . '/' . $type;
         $buttons[] = $button('misp-icon misp-icon-analyst-note misp-simple', $replyLabels[$type][0], sprintf($base, 'Note'));
         $buttons[] = $button('misp-icon misp-icon-analyst-opinion misp-simple', $replyLabels[$type][1], sprintf($base, 'Opinion'));
