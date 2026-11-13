@@ -7336,382 +7336,529 @@ th.vp-rel-num {
 }
 
 /* ------------------------------------------------------------------
- * The split
+ * The modules beside the one opened
  * ------------------------------------------------------------------
- * Not a Bootstrap row. The rail scrolls on its own once there are
- * more modules than fit, which a grid column cannot do, and thirty
- * modules is as ordinary a number here as three.
- *
- * ~40% of the panel is the drawn proportion, clamped at both ends: a
- * rail is a list of short names, so 640px of it on a wide screen is
- * width taken from the pane for nothing.
+ * The module list on the left, the opened module on the right. The
+ * page scrolls; neither side scrolls on its own.
  * ------------------------------------------------------------------ */
 
 .vp-e-split {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
     align-items: stretch;
-    min-height: 26rem;
 }
 
 .vp-e-rail {
     display: flex;
-    flex: 0 0 clamp(17rem, 32%, 26rem);
     flex-direction: column;
     min-width: 0;
     border-right: 1px solid var(--bs-border-color);
     background: var(--bs-tertiary-bg);
 }
 
-/*
- * No height of its own: it fills whatever the split turns out to be,
- * so the tray stays pinned at the foot and the rows scroll between.
- * A fixed cap would clip a row mid-height whenever the pane happened
- * to be taller than the cap, which is most of the time.
- *
- * That also gives "scrolls once there are more modules than fit" its
- * honest meaning — than fit beside the pane. With a short pane and
- * thirty modules the panel simply grows, and nothing is hidden.
- */
-.vp-e-railscroll {
-    flex: 1 1 auto;
-    /* without this a flex child refuses to shrink past its content,
-       and the scroll lands on the page instead of on the rail */
-    min-height: 0;
-    overflow-y: auto;
-}
-
-/*
- * **The answer scrolls inside the split, not the page.** The rail
- * pins `Run n selected` to its own foot, and that is only useful
- * while the foot is on the screen — an answer of any length used to
- * push it a page-scroll down. Capped against the viewport rather than
- * at a number, with a floor so a short pane keeps the rail's minimum,
- * and lifted entirely where the two stack.
- */
 .vp-e-pane {
-    flex: 1 1 auto;
     min-width: 0;
-    max-height: max(26rem, calc(100vh - 22rem));
+}
+
+/* Under the sticky page header and tabs; scrolls on its own only when
+   the module list is taller than the screen. */
+.vp-e-railinner {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 7.5rem;
+    max-height: calc(100vh - 8.5rem);
     overflow-y: auto;
 }
 
-/* Under lg the two panes stack: a 17rem rail beside a pane is two
-   columns of nothing on a phone. */
+/* A drawing's long table, in a module's own pane, keeps its column
+   heads in view. The merged pane's cells cap the whole drawing. */
+[data-vp-e-slot] .vp-rf-table {
+    display: block;
+    max-height: 30rem;
+    overflow: auto;
+}
+
+[data-vp-e-slot] .vp-rf-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bs-body-bg);
+}
+
 @media (max-width: 991.98px) {
     .vp-e-split {
-        flex-direction: column;
-        min-height: 0;
-    }
-
-    /* Stacked, the pane is the page: a scroller inside a scroller on
-       a phone is two thumbs' worth of the same gesture. */
-    .vp-e-pane {
-        max-height: none;
-        overflow-y: visible;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .vp-e-rail {
-        flex: 0 0 auto;
         border-right: 0;
         border-bottom: 1px solid var(--bs-border-color);
     }
 
-    .vp-e-railscroll {
-        max-height: 22rem;
+    .vp-e-railinner {
+        position: static;
+        max-height: none;
     }
 }
-
-/* ------------------------------------------------------------------
- * A rail row
- * ------------------------------------------------------------------
- * The row is the state. Six of them at once is the ordinary case, so
- * every state has to be legible in one line at 0.76rem: the sub-line
- * says it in words, the dot says it in colour, and the staleness chip
- * says when it was last true.
- * ------------------------------------------------------------------ */
-
-/* ------------------------------------------------------------------
- * Staging a run
- * ------------------------------------------------------------------
- * The select-all bar above the rows and the checkbox beside each one.
- * Separate from the row's own button, because staging a module to run
- * and reading what it already said are different decisions — which is
- * also why the checkbox is not inside the button.
- * ------------------------------------------------------------------ */
 
 .vp-e-railhead {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 9px;
-    padding: 8px 12px;
+    gap: .5rem;
+    padding: .6rem .75rem;
     border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    font-size: 0.72rem;
 }
 
 .vp-e-selall {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: .45rem;
     margin: 0;
-    cursor: pointer;
-}
-
-.vp-e-selall input:disabled {
-    cursor: not-allowed;
-}
-
-.vp-e-railhead-n {
     color: var(--bs-secondary-color);
+    font-size: .8rem;
+    cursor: pointer;
 }
 
-.vp-e-selbox {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
+.vp-e-selall input {
     margin: 0;
-    cursor: pointer;
+}
+
+.vp-e-runsel {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .vp-e-railrow {
     display: flex;
-    align-items: center;
-    gap: 9px;
-    width: 100%;
-    padding: 8px 12px;
-    border: 0;
+    align-items: flex-start;
     border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    color: inherit;
-    font-size: 0.76rem;
-    text-align: left;
+    transition: background-color .12s;
 }
 
 .vp-e-railrow:hover {
-    background: color-mix(in srgb, var(--vp-e-accent) 6%,
-        var(--bs-body-bg));
+    background: color-mix(in srgb, var(--vp-e-accent) 5%, var(--bs-tertiary-bg));
 }
 
-[data-misp-mode="dark"] .vp-e-railrow:hover {
-    background: color-mix(in srgb, var(--vp-e-accent) 12%,
-        var(--bs-body-bg));
-}
-
-/*
- * Which module the pane is showing. A bar down the edge as well as a
- * tint, so the selection survives greyscale and a tint too weak to
- * see on a themed ground.
- */
 .vp-e-railrow-on,
 .vp-e-railrow-on:hover {
-    background: color-mix(in srgb, var(--vp-e-accent) 10%,
-        var(--bs-body-bg));
+    background: var(--bs-body-bg);
     box-shadow: inset 3px 0 0 var(--vp-e-accent);
 }
 
-[data-misp-mode="dark"] .vp-e-railrow-on,
-[data-misp-mode="dark"] .vp-e-railrow-on:hover {
-    background: color-mix(in srgb, var(--vp-e-accent) 18%,
-        var(--bs-body-bg));
+.vp-e-selbox {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: .7rem 0 .7rem .75rem;
+    cursor: pointer;
 }
 
-.vp-e-railrow-all {
-    background: var(--bs-tertiary-bg);
+.vp-e-selbox input {
+    margin: 0;
 }
 
-/*
- * A button rather than a click handler on the row, so picking a
- * module is reachable from the keyboard — and separate from the
- * checkbox beside it, because staging a module to run and reading
- * what it already said are different decisions.
- */
 .vp-e-railbody {
-    display: block;
+    display: flex;
     flex: 1 1 auto;
+    flex-direction: column;
+    gap: .2rem;
     min-width: 0;
-    padding: 0;
+    padding: .6rem .75rem;
     border: 0;
     background: none;
     color: inherit;
-    font: inherit;
     text-align: left;
 }
 
 .vp-e-railbody:focus-visible {
     outline: 2px solid var(--vp-e-accent);
-    outline-offset: 2px;
-    border-radius: 3px;
+    outline-offset: -2px;
+}
+
+.vp-e-railrow-all .vp-e-railbody {
+    padding-left: .75rem;
 }
 
 .vp-e-railrow-name {
-    display: block;
-    overflow: hidden;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.74rem;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    color: var(--bs-emphasis-color);
+    font-size: .86rem;
     font-weight: 700;
+}
+
+.vp-e-railrow-name > i {
+    color: var(--vp-e-accent);
+    font-size: .8rem;
+}
+
+.vp-e-railrow-label {
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.vp-e-railrow-sub {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px 8px;
-    font-size: 0.66rem;
-    color: var(--bs-secondary-color);
-}
-
-/* How much a module sent back, on its own row. Weighted over the type
-   and the kind beside it: after a run it is the thing the reader is
-   comparing across the rail. */
 .vp-e-railrow-n {
-    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0 .4rem;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg);
     color: var(--bs-body-color);
+    font-size: .68rem;
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.vp-e-railgroup {
-    padding: 9px 12px 5px;
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+.vp-e-railrow-desc {
+    overflow: hidden;
     color: var(--bs-secondary-color);
+    font-size: .76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* ------------------------------------------------------------------
- * The profile strip
- * ------------------------------------------------------------------
- * Phase 7. Above the rail and above every empty state, because the
- * condition it most needs to carry — a profile naming a module the
- * instance has turned off — is the case with no rail to hang it on.
- *
- * Deliberately quiet: it reports a selection the reader can see for
- * themselves in the ticked boxes, and its accent is the panel's own
- * rather than a warning colour. Nothing here is an error; a stated
- * condition is the design working.
- * ------------------------------------------------------------------ */
-
-.vp-e-profile {
-    padding: 9px 14px 11px;
-    border-bottom: 1px solid var(--bs-border-color);
-    background: color-mix(in srgb, var(--vp-e-accent) 5%,
-                var(--bs-body-bg));
-}
-
-[data-misp-mode="dark"] .vp-e-profile {
-    background: color-mix(in srgb, var(--vp-e-accent) 10%,
-                var(--bs-body-bg));
-}
-
-.vp-e-profile-head {
+.vp-e-railrow-foot {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 8px;
+    gap: .15rem .55rem;
     color: var(--bs-secondary-color);
-    font-size: 0.62rem;
+    font-size: .74rem;
+}
+
+.vp-e-railrow-state.is-ok {
+    color: var(--vp-e-ok-ink);
+}
+
+.vp-e-railrow-state.is-warn {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.vp-e-railrow-mine {
+    padding: 0 .35rem;
+    border-radius: .25rem;
+    background: color-mix(in srgb, var(--vp-e-accent) 14%, transparent);
+    color: var(--bs-body-color);
+    font-size: .68rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    cursor: help;
 }
 
-.vp-e-profile-leaving {
-    padding: 1px 7px;
-    border-radius: 4px;
-    background: var(--bs-secondary-bg);
-    letter-spacing: 0.05em;
-}
-
-.vp-e-profile-line {
-    margin-top: 4px;
-    font-size: 0.82rem;
+/* Where the value goes when the module runs. */
+.vp-e-where {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
     font-weight: 600;
 }
 
-.vp-e-profile-note {
+.vp-e-where > i {
+    font-size: .68rem;
+}
+
+.vp-e-where.is-local {
+    color: var(--vp-e-ok-ink);
+}
+
+.vp-e-where.is-out {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.vp-e-railoff {
+    display: flex;
+    gap: .45rem;
+    padding: .65rem .75rem;
+    border-top: 1px solid var(--bs-border-color);
     color: var(--bs-secondary-color);
-    font-size: 0.72rem;
+    font-size: .74rem;
+    line-height: 1.45;
 }
 
-.vp-e-profile-conds {
-    margin: 7px 0 0;
+.vp-e-railoff > i {
+    margin-top: .15rem;
+}
+
+/* A type, as the value page names one. */
+.vp-e-type {
+    padding: 0 .3rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .25rem;
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .78em;
+    white-space: nowrap;
+}
+
+/* The header's profile and service pills. */
+.vp-e-ppill,
+.vp-e-svcpill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.vp-e-ppill {
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.vp-e-ppill:hover,
+.vp-e-ppill:focus-visible {
+    border-color: color-mix(in srgb, var(--vp-e-accent) 50%, var(--bs-border-color));
+}
+
+.vp-e-ppill-facts {
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+}
+
+.vp-e-ppill-caret {
+    font-size: .65rem;
+    transition: transform .15s;
+}
+
+.vp-e-ppill[aria-expanded="true"] .vp-e-ppill-caret {
+    transform: rotate(180deg);
+}
+
+.vp-e-svcpill > i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.vp-e-svcpill.is-up {
+    background: color-mix(in srgb, var(--vp-e-ok) 14%, transparent);
+    color: var(--vp-e-ok-ink);
+}
+
+.vp-e-svcpill.is-up > i {
+    background: var(--vp-e-ok);
+}
+
+.vp-e-svcpill.is-down {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+.vp-e-svcpill.is-down > i {
+    background: var(--bs-danger);
+}
+
+.vp-e-pdetail {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    font-size: .82rem;
+}
+
+.vp-e-pdetail-lead {
+    margin: 0;
+}
+
+.vp-e-pdetail-conds {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    margin: .5rem 0 0;
     padding: 0;
     list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    color: var(--bs-secondary-color);
 }
 
-.vp-e-profile-conds li {
+.vp-e-pdetail-conds li {
     display: flex;
+    gap: .45rem;
+}
+
+.vp-e-pdetail-conds i {
+    margin-top: .2rem;
+    font-size: .72rem;
+}
+
+/* The opened module: its name and what it does, then the slot that
+   holds either the brief or the answer. The answer's rows are full
+   bleed, so the gutters sit on the pieces rather than here. */
+.vp-e-detail {
+    min-width: 0;
+}
+
+.vp-e-d-head {
+    display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
-    gap: 7px;
-    font-size: 0.74rem;
-    line-height: 1.35;
+    gap: .5rem 1rem;
+    padding: 1rem 1.25rem .25rem;
 }
 
-.vp-e-profile-conds i {
-    margin-top: 3px;
-    flex: 0 0 auto;
+.vp-e-d-title {
+    color: var(--bs-emphasis-color);
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.vp-e-d-desc {
+    margin-top: .15rem;
     color: var(--bs-secondary-color);
+    font-size: .84rem;
 }
 
-/* The chip on a rail row the profile ticked, so a reader who has
- * never opened the editor can see where the selection came from. */
-.vp-e-mine {
-    flex: 0 0 auto;
-    padding: 1px 7px;
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--vp-e-accent) 22%,
-                var(--bs-body-bg));
-    color: var(--bs-body-color);
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+[data-vp-e-pane="__none"] .vp-e-detail {
+    padding: 1rem 1.25rem 1.25rem;
 }
 
-[data-misp-mode="dark"] .vp-e-mine {
-    background: color-mix(in srgb, var(--vp-e-accent) 38%,
-                var(--bs-body-bg));
+[data-vp-e-pane="__none"] .vp-e-d-desc {
+    max-width: 62ch;
 }
 
-/* ------------------------------------------------------------------
- * The module family chip
- * ------------------------------------------------------------------
- * Cortex is a separate service on a separate port with a separate
- * timeout, so merging it into one rail is a decision this design
- * makes and the chip is where it says so.
- * ------------------------------------------------------------------ */
-
-.vp-e-kind {
-    flex: 0 0 auto;
-    padding: 1px 7px;
-    border-radius: 4px;
-    background: var(--bs-secondary-bg);
-    color: var(--bs-secondary-color);
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.vp-e-tray {
+.vp-e-brief {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: auto;
-    padding: 10px 12px;
-    border-top: 1px solid var(--bs-border-color);
+    gap: .75rem;
+    padding: .75rem 1.25rem 1.25rem;
+}
+
+/* The path the value takes: the value as a type, where it is answered,
+   where the answer is kept. */
+.vp-e-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    padding: .6rem .75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
     background: var(--bs-tertiary-bg);
+    font-size: .82rem;
+}
+
+.vp-e-flow-node {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .2rem .6rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    background: var(--bs-body-bg);
+}
+
+.vp-e-flow-node.is-local > i {
+    color: var(--vp-e-ok-ink);
+}
+
+.vp-e-flow-node.is-out > i {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.vp-e-flow-value {
+    max-width: 18rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-e-flow-arrow {
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+}
+
+.vp-e-flow-limit {
+    margin-left: auto;
+    color: var(--bs-secondary-color);
+    font-size: .76rem;
+}
+
+.vp-e-brief-state {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    color: var(--bs-secondary-color);
+    font-size: .84rem;
+}
+
+.vp-e-brief-state > b {
+    color: var(--bs-emphasis-color);
+}
+
+.vp-e-brief-settings {
+    margin-top: .2rem;
+    font-size: .78rem;
+}
+
+.vp-e-brief-acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+/* An answer's head: its state, what the asking cost, Ask again. */
+.vp-e-res-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem .9rem;
+    padding: .6rem 1.25rem .75rem;
+}
+
+.vp-e-res-state {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .15rem .65rem;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    font-size: .8rem;
+    font-weight: 600;
+}
+
+.vp-e-res-state.is-ok {
+    background: color-mix(in srgb, var(--vp-e-ok) 14%, transparent);
+    color: var(--vp-e-ok-ink);
+}
+
+.vp-e-res-state.is-warn {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+}
+
+.vp-e-res-state.is-bad {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+.vp-e-res-age {
+    font-weight: 400;
+}
+
+.vp-e-res-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .2rem .75rem;
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.vp-e-res-acts {
+    margin-left: auto;
 }
 
 /* ------------------------------------------------------------------
- * The state dot, and the pane's status pill
+ * The state dot
  * ------------------------------------------------------------------ */
 
 .vp-e-dot {
@@ -7733,99 +7880,6 @@ th.vp-rel-num {
     background: none;
     border: 1px dashed var(--bs-secondary-color);
 }
-
-.vp-e-status {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 6px;
-    padding: 1px 9px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 999px;
-    background: var(--bs-body-bg);
-    color: var(--bs-secondary-color);
-    font-size: 0.68rem;
-    font-weight: 600;
-    line-height: 1.5;
-}
-
-.vp-e-status-ok {
-    border-color: color-mix(in srgb, var(--vp-e-ok) 50%,
-        var(--bs-border-color));
-    background: color-mix(in srgb, var(--vp-e-ok) 9%, var(--bs-body-bg));
-    color: var(--vp-e-ok-ink);
-}
-
-.vp-e-status-timeout {
-    border-color: var(--bs-warning);
-    background: color-mix(in srgb, var(--bs-warning) 12%,
-        var(--bs-body-bg));
-    color: var(--bs-warning-text-emphasis);
-}
-
-.vp-e-status-none {
-    border-style: dashed;
-}
-
-[data-misp-mode="dark"] .vp-e-status-ok {
-    background: color-mix(in srgb, var(--vp-e-ok) 22%, var(--bs-body-bg));
-}
-
-[data-misp-mode="dark"] .vp-e-status-timeout {
-    background: color-mix(in srgb, var(--bs-warning) 24%,
-        var(--bs-body-bg));
-}
-
-/* ------------------------------------------------------------------
- * Module service reachability
- * ------------------------------------------------------------------
- * MISP re-fetches /modules live on every render with a one-second
- * timeout and caches nothing, so "the service is up" is a state this
- * tab has to be able to draw. It lives in the tray because a rail of
- * dashed rows under an unreachable service means something different
- * from the same rail under a healthy one.
- * ------------------------------------------------------------------ */
-
-.vp-e-svc {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--bs-secondary-color);
-    font-size: 0.68rem;
-}
-
-/* ------------------------------------------------------------------
- * The answer's head
- * ------------------------------------------------------------------
- * Seven outcomes share one head: a mark, the claim, and the chips
- * that say what the press cost. Chips rather than a middot-run,
- * because they are five unrelated facts and a reader wants one of
- * them at a time — how long it took, what it was asked as, how much
- * came back.
- * ------------------------------------------------------------------ */
-
-.vp-e-res-head {
-    display: flex;
-    align-items: flex-start;
-    gap: 11px;
-    padding: 18px 20px 12px;
-}
-
-.vp-e-res-headtext {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.vp-e-mark {
-    flex: 0 0 auto;
-    margin-top: 4px;
-    font-size: 1rem;
-}
-
-.vp-e-mark-ok { color: var(--vp-e-ok-ink); }
-.vp-e-mark-warn { color: var(--bs-warning-text-emphasis); }
-.vp-e-mark-bad { color: var(--bs-danger-text-emphasis); }
-.vp-e-mark-quiet { color: var(--bs-secondary-color); }
 
 .vp-e-chips {
     display: flex;
@@ -7873,14 +7927,6 @@ th.vp-rel-num {
     padding: 0 20px 12px;
 }
 
-.vp-e-res-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 20px 18px;
-}
-
 /* ------------------------------------------------------------------
  * Filtering what is already here
  * ------------------------------------------------------------------
@@ -7910,15 +7956,6 @@ th.vp-rel-num {
     font-size: 0.68rem;
     font-variant-numeric: tabular-nums;
 }
-
-/* ------------------------------------------------------------------
- * What kind of thing follows
- * ------------------------------------------------------------------
- * An answer is attributes, objects and bare elements in that order,
- * and which of the three a row is decides what can be done with it.
- * The heading carries MISP's own glyph for the kind rather than a
- * word the reader has to map back to one.
- * ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------
  * The merged pane's grid
@@ -8055,127 +8092,28 @@ th.vp-rel-num {
     font-size: 0.6rem;
 }
 
-.vp-e-list {
-    border-top: 1px solid var(--bs-border-color);
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-/* ------------------------------------------------------------------
- * A returned element
- * ------------------------------------------------------------------
- * Two lines, not one that wraps. The value is what the reader came
- * for and takes the first line whole; the type, the category and the
- * IDS flag go under it in a fixed order, so on a two-hundred-row
- * answer the same fact is in the same place on every row.
- * ------------------------------------------------------------------ */
-
-.vp-e-el {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 8px 20px;
-    border-top: 1px solid var(--bs-border-color);
-}
-
-.vp-e-el:first-child {
-    border-top: 0;
-}
-
-.vp-e-el:hover {
-    background: var(--bs-tertiary-bg);
-}
-
-.vp-e-el-body {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.vp-e-el-top {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    min-width: 0;
-}
-
-.vp-e-el-sub {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
-    margin-top: 3px;
-}
-
-.vp-e-el-acts {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 4px;
-}
-
-.vp-e-el-acts .btn {
-    --bs-btn-padding-y: 0.05rem;
-    --bs-btn-padding-x: 0.45rem;
-    --bs-btn-font-size: 0.68rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-/*
- * MISP's own type badge is `border border-dark rounded p-1`, which
- * carries a fixed ink. Same shape, theme-aware border.
- */
-.vp-e-type {
-    display: inline-block;
-    flex: 0 0 auto;
-    padding: 0 6px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.68rem;
-    line-height: 1.5;
-    /* `size-in-bytes` is a type, not a sentence: it broke over two
-       lines and took the row's height with it. */
+/* A module's attributes and objects, in the index tables: Pick sits in
+   a narrow last column, an object's cell opens it as in the index. */
+.vp-e-pickcell {
+    width: 1%;
+    text-align: right;
     white-space: nowrap;
 }
 
-/* A value a module returned.
- *
- * It wraps and breaks anywhere. A returned value is arbitrary text
- * from somebody else's service — a URL, a long TXT record, a base64
- * blob — and the pane must absorb it rather than let it push the
- * panel into horizontal overflow. */
-.vp-e-val {
+.vp-e-table.oi-table td.oi-col-object {
     min-width: 0;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.78rem;
-    color: var(--bs-body-color);
-    overflow-wrap: anywhere;
-    word-break: break-word;
 }
 
-.vp-e-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+.vp-e-obj-empty {
+    padding: .5rem .75rem;
     color: var(--bs-secondary-color);
-    font-size: 0.67rem;
+    font-size: .8rem;
 }
 
-/* The module's own detection call, which MISP gives a column of its
-   own everywhere else it is shown. It takes the settled-fact green
-   rather than a warning tone: a module saying "this one is
-   actionable" is a claim, not an alarm. */
-.vp-e-ids {
-    flex: 0 0 auto;
-    padding: 0 6px;
-    border: 1px solid color-mix(in srgb, var(--vp-e-ok) 45%,
-        var(--bs-border-color));
-    border-radius: 4px;
-    color: var(--vp-e-ok-ink);
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    line-height: 1.6;
+.vp-e-table .vp-e-known,
+.vp-e-table .vp-e-known-mark {
+    display: inline-block;
+    margin-top: .2rem;
 }
 
 /* What stops an analyst adding a duplicate. */
@@ -8205,291 +8143,12 @@ th.vp-rel-num {
     white-space: nowrap;
 }
 
-/* ------------------------------------------------------------------
- * A returned object
- * ------------------------------------------------------------------
- * Drawn the way `Objects/index.ctp` draws a stored one — the
- * hexagon, the name, the meta-category, the template's description,
- * and the attributes in a table under a head that is itself the
- * control. What differs is what a returned object has not got: no
- * id, no uuid, no tags, no sightings, no distribution. Those columns
- * are absent rather than drawn empty, because an empty Sightings
- * column on an answer nobody has stored is a question about MISP the
- * object cannot have an answer to.
- * ------------------------------------------------------------------ */
-
-.vp-e-obj {
-    margin: 0 20px 8px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.vp-e-obj-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 7px 12px;
-    border: 0;
-    background: color-mix(in srgb, var(--object) 10%, var(--bs-body-bg));
-    text-align: left;
-}
-
-/* Same rebalance as `.vp-relation`, rest and hover together. */
-[data-misp-mode="dark"] .vp-e-obj-head {
-    background: color-mix(in srgb, var(--object) 14%, var(--bs-body-bg));
-}
-
-.vp-e-obj-head:hover {
-    background: color-mix(in srgb, var(--object) 18%, var(--bs-body-bg));
-}
-
-[data-misp-mode="dark"] .vp-e-obj-head:hover {
-    background: color-mix(in srgb, var(--object) 18%, var(--bs-body-bg));
-}
-
-.vp-e-obj-head:focus-visible {
-    outline: 2px solid var(--vp-e-accent);
-    outline-offset: -2px;
-}
-
-.vp-e-obj-head[aria-expanded="true"] {
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-.vp-e-obj-chev {
-    flex: 0 0 auto;
-    width: 0.7rem;
-    color: var(--bs-secondary-color);
-    font-size: 0.62rem;
-    transition: transform 0.12s ease;
-}
-
-.vp-e-obj-head[aria-expanded="true"] .vp-e-obj-chev {
-    transform: rotate(90deg);
-}
-
-.vp-e-obj-icon {
-    flex: 0 0 auto;
-    color: var(--bs-secondary-color);
-    font-size: 0.9rem;
-}
-
-.vp-e-obj-name {
-    flex: 0 0 auto;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.76rem;
-    font-weight: 700;
-}
-
-.vp-e-obj-cat {
-    flex: 0 0 auto;
-    padding: 0 7px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 999px;
-    color: var(--bs-secondary-color);
-    font-size: 0.62rem;
-    line-height: 1.6;
-}
-
-/* What a shut card holds, so nothing here is a shell somebody has to
-   open to find out whether it is worth opening. Gone the moment the
-   card is open, where the table says it properly. */
-.vp-e-obj-peek {
-    flex: 1 1 6rem;
-    overflow: hidden;
-    color: var(--bs-secondary-color);
-    font-family: var(--bs-font-monospace);
-    font-size: 0.67rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.vp-e-obj-head[aria-expanded="true"] .vp-e-obj-peek {
-    display: none;
-}
-
-.vp-e-obj-count {
-    flex: 0 0 auto;
-    margin-left: auto;
-    color: var(--bs-secondary-color);
-    font-size: 0.66rem;
-    white-space: nowrap;
-}
-
-.vp-e-obj-desc {
-    padding: 7px 12px;
-    border-bottom: 1px solid var(--bs-border-color);
-    color: var(--bs-secondary-color);
-    font-size: 0.7rem;
-    line-height: 1.5;
-}
-
-.vp-e-otable-wrap {
-    overflow-x: auto;
-}
-
-.vp-e-otable {
-    width: 100%;
-    margin: 0;
-    border-collapse: collapse;
-    font-size: 0.74rem;
-}
-
-.vp-e-otable > thead > tr > th {
-    padding: 4px 10px;
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    color: var(--bs-secondary-color);
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.vp-e-otable > tbody > tr > td {
-    padding: 4px 10px;
-    border-top: 1px solid var(--bs-border-color);
-    vertical-align: top;
-}
-
-.vp-e-otable > tbody > tr:first-child > td {
-    border-top: 0;
-}
-
-.vp-e-otable > tbody > tr:hover {
-    background: var(--bs-tertiary-bg);
-}
-
-/* The value column takes whatever is left over; every other column
-   sizes to its content. A 200-character TXT record then wraps inside
-   its own cell instead of pushing the type and the category off the
-   card. */
-.vp-e-otable > tbody > tr > td:nth-child(2) {
-    width: 100%;
-}
-
-/* `Network activity` wrapping to two lines makes every row it appears
-   on a row and a half. The value column absorbs the width instead. */
-.vp-e-otable > tbody > tr > td.vp-e-meta {
-    white-space: nowrap;
-}
-
-.vp-e-rel-name {
-    color: var(--bs-secondary-color);
-    font-family: var(--bs-font-monospace);
-    font-size: 0.67rem;
-    white-space: nowrap;
-}
-
-/* MISP adds an object whole, so the three controls sit under the
-   table rather than on its rows — which is also the only place they
-   could sit without implying an attribute could be taken out of the
-   object it came in. */
-.vp-e-obj-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-top: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-}
-
-.vp-e-obj-footnote {
-    color: var(--bs-secondary-color);
-    font-size: 0.67rem;
-}
-
-.vp-e-obj-foot .vp-e-el-acts {
-    margin-left: auto;
-}
-
-/* ------------------------------------------------------------------
- * Nothing queried yet
- * ------------------------------------------------------------------
- * A briefing, not an apology. The reader is being asked to spend
- * money and to reveal an interest, so the state that precedes the
- * spend gets the room to say what the spend buys and what it costs.
- * ------------------------------------------------------------------ */
-
-.vp-e-cold {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 21rem;
-    gap: 28px;
-    padding: 24px 26px;
-}
-
-/* Two children and only two — the argument, and the ledger beside it.
-   A grid handed five flows them alternately into both columns, which
-   is what put a module's description opposite its title. */
-.vp-e-cold-main {
-    min-width: 0;
-}
-
-/* The resting pane has no ledger, and a 21rem column of nothing beside
-   its prose is 21rem of nothing. One column means its children are
-   rows, so the 28px meant to separate two columns has to go — it was
-   opening a hand's width between a heading and its own first line. */
-.vp-e-cold-solo {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 0;
-}
-
-@media (max-width: 1199.98px) {
-    .vp-e-cold {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
-    }
-}
-
-.vp-e-cold-title {
-    margin: 0 0 6px;
-    font-size: 1.15rem;
-    font-weight: 700;
-}
-
 .vp-e-cold-prose {
     max-width: 62ch;
     margin: 0 0 14px;
     color: var(--bs-secondary-color);
     font-size: 0.85rem;
     line-height: 1.6;
-}
-
-.vp-e-cold-ledger {
-    align-self: start;
-    padding: 13px 15px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 8px;
-    background: var(--bs-tertiary-bg);
-}
-
-/* Label over value, not label opposite value. In a 21rem aside the
-   opposed pair leaves the long ones — what a module sends, what its
-   settings mean — as two or three words a line down a ragged gutter. */
-.vp-e-ledger-row {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 5px 0;
-    font-size: 0.76rem;
-    line-height: 1.45;
-}
-
-.vp-e-ledger-row + .vp-e-ledger-row {
-    border-top: 1px solid var(--bs-border-color);
-}
-
-.vp-e-ledger-n {
-    color: var(--bs-secondary-color);
-    font-size: 0.62rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
 }
 
 /* ------------------------------------------------------------------

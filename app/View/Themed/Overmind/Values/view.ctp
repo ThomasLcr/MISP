@@ -20,6 +20,8 @@ echo $this->element('genericElements/assetLoader', array(
         'org-tile', 'tile-drawer', 'value-intelligence', 'value-new-event',
         // The Collaboration tab's reports are the reports index's card tiles.
         'event-reports-index',
+        // Enrichment answers draw their objects as the objects index rows.
+        'objects-index',
         // The Overview's occurrence card is the global attribute table.
         'attributes-index',
         // Its tags card is the event overview's Context card.

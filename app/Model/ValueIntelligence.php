@@ -15874,11 +15874,66 @@ class ValueIntelligence extends AppModel
      */
     private function enrichmentView(array $run, $all = false)
     {
-        return ValueEnrichmentTool::view(
+        return $this->enrichmentFieldOrder(ValueEnrichmentTool::view(
             $run,
             $all,
             self::ENRICHMENT_ELEMENT_CAP
+        ));
+    }
+
+    /**
+     * An answer's object attributes in the order their template reads
+     * them, highest `ui-priority` first as the event view orders an
+     * object (`MispObject::fieldOrderByTemplate`); a relation the
+     * template does not list keeps its place, last.
+     *
+     * Matched on the template name: a shaped answer, stored or fresh,
+     * no longer carries the template uuid.
+     *
+     * @param array $run
+     * @return array
+     */
+    private function enrichmentFieldOrder(array $run)
+    {
+        if (empty($run['objects'])) {
+            return $run;
+        }
+        $names = array_values(array_unique(array_filter(
+            array_column($run['objects'], 'name')
+        )));
+        if (empty($names)) {
+            return $run;
+        }
+        $uuids = $this->model('ObjectTemplate')->find('list', array(
+            'conditions' => array('ObjectTemplate.name' => $names),
+            'fields' => array('ObjectTemplate.name', 'ObjectTemplate.uuid'),
+            'recursive' => -1,
+        ));
+        if (empty($uuids)) {
+            return $run;
+        }
+        $order = $this->model('MispObject')->fieldOrderByTemplate(
+            array_values($uuids)
         );
+        foreach ($run['objects'] as $i => $object) {
+            $uuid = isset($uuids[$object['name']])
+                ? $uuids[$object['name']] : null;
+            if ($uuid === null || empty($order[$uuid])
+                || empty($object['attributes'])
+            ) {
+                continue;
+            }
+            $rank = $order[$uuid];
+            // A stable sort: equal ranks keep the module's order.
+            usort(
+                $run['objects'][$i]['attributes'],
+                function ($a, $b) use ($rank) {
+                    return ($rank[(string)$a['relation']] ?? PHP_INT_MAX)
+                        <=> ($rank[(string)$b['relation']] ?? PHP_INT_MAX);
+                }
+            );
+        }
+        return $run;
     }
 
     /**

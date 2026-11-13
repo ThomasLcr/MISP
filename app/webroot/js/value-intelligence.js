@@ -2338,7 +2338,6 @@
 
 
 
-
     /* ==================================================================
      * Charts
      * ------------------------------------------------------------------
@@ -4557,58 +4556,27 @@
      * that errored and differently again from one nobody asked.
      */
     var ENRICH_STATES = {
-        ok: {dot: 'vp-e-dot-ok', cls: 'vp-e-status-ok',
-            label: 'Answered'},
-        silent: {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-            label: 'Nothing back'},
-        error: {dot: 'vp-e-dot-err', cls: 'vp-e-status-timeout',
-            label: 'Module error'},
-        timeout: {dot: 'vp-e-dot-timeout', cls: 'vp-e-status-timeout',
-            label: 'Timed out'},
-        refused: {dot: 'vp-e-dot-err', cls: 'vp-e-status-timeout',
-            label: 'Not sent'},
-        unreachable: {dot: 'vp-e-dot-err', cls: 'vp-e-status-timeout',
-            label: 'No service'},
-        ineligible: {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-            label: 'Not offered'},
-        running: {dot: 'vp-e-dot-run', cls: 'vp-e-status-none',
-            label: 'Asking…'},
-        /*
-         * The reader's own declaration, and it was missing: a `never`
-         * module refused at the endpoint painted `Unknown` on its row
-         * while the pane beside it explained the refusal.
-         */
-        profile_refused: {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-            label: 'Blocked by you'},
-        /*
-         * Phase 11. Neither is a failure of the module: the instance
-         * declined to run it unasked, or the kept answer has aged out
-         * of the store. Both are worth a second press and neither
-         * deserves a red dot.
-         */
-        auto_not_allowed: {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-            label: 'Not run on its own'},
-        expired: {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-            label: 'No longer kept'}
+        ok: {dot: 'vp-e-dot-ok', cls: 'is-ok', label: 'answered just now'},
+        silent: {dot: 'vp-e-dot-none', cls: '', label: 'answered with nothing'},
+        error: {dot: 'vp-e-dot-err', cls: 'is-warn', label: 'module error'},
+        timeout: {dot: 'vp-e-dot-timeout', cls: 'is-warn', label: 'timed out'},
+        refused: {dot: 'vp-e-dot-err', cls: 'is-warn', label: 'not sent'},
+        unreachable: {dot: 'vp-e-dot-err', cls: 'is-warn', label: 'no service'},
+        ineligible: {dot: 'vp-e-dot-none', cls: '', label: 'not offered'},
+        running: {dot: 'vp-e-dot-run', cls: '', label: 'asking…'},
+        // The reader's own declaration: a `never` module refused at the endpoint.
+        profile_refused: {dot: 'vp-e-dot-none', cls: '', label: 'blocked by your profile'},
+        // Neither is a failure of the module, and neither deserves a red dot.
+        auto_not_allowed: {dot: 'vp-e-dot-none', cls: '', label: 'not run on its own'},
+        expired: {dot: 'vp-e-dot-none', cls: '', label: 'no longer kept'}
     };
 
-    /*
-     * What a row says about a state this script does not know.
-     *
-     * **Not `ok`.** It was, and that is how a timed-out module came to
-     * paint a green dot and the word *Answered* on its row while the
-     * pane beside it said the module had run out of time — the one
-     * distinction the state list exists to keep. A row that cannot
-     * name what happened must not claim the best of the seven things
-     * it might have been.
-     */
-    var ENRICH_UNKNOWN = {dot: 'vp-e-dot-none', cls: 'vp-e-status-none',
-        label: 'Unknown'};
+    // Never `ok`: a row that cannot name what happened must not claim the best outcome.
+    var ENRICH_UNKNOWN = {dot: 'vp-e-dot-none', cls: '', label: 'unknown'};
 
     var ENRICH_DOTS = 'vp-e-dot-ok vp-e-dot-err vp-e-dot-run '
         + 'vp-e-dot-none vp-e-dot-timeout';
-    var ENRICH_CLS = 'vp-e-status-ok vp-e-status-none '
-        + 'vp-e-status-timeout';
+    var ENRICH_CLS = 'is-ok is-warn';
 
     /**
      * How much a module sent back, said on its own row.
@@ -4665,6 +4633,11 @@
             return;
         }
         var spec = ENRICH_STATES[state] || ENRICH_UNKNOWN;
+        // A kept answer says how old it is, as the answer's own head does.
+        var age = result ? result.querySelector('.vp-e-res-age') : null;
+        if (state === 'ok' && age) {
+            spec = {dot: spec.dot, cls: spec.cls, label: 'answered ' + age.textContent.trim()};
+        }
         setEnrichCount(panel, row, state, result);
 
         var dot = row.querySelector('[data-vp-e-dot]');
@@ -4680,7 +4653,9 @@
             ENRICH_CLS.split(' ').forEach(function (cls) {
                 label.classList.remove(cls);
             });
-            label.classList.add(spec.cls);
+            if (spec.cls) {
+                label.classList.add(spec.cls);
+            }
             label.textContent = spec.label;
         }
     }
@@ -4886,7 +4861,7 @@
                 return enrichAsk(panel, one.name, one.type);
             });
         }, Promise.resolve()).then(function () {
-            done('Run <span data-vp-e-runcount>0</span> selected');
+            done();
             panel.querySelectorAll('[data-vp-e-select]')
                 .forEach(function (box) { box.checked = false; });
             refreshEnrichTray(panel);
@@ -5219,6 +5194,11 @@
         }
         head.setAttribute('aria-expanded', open ? 'true' : 'false');
         fold.classList.toggle('d-none', !open);
+        // An object row frames itself and its attributes, as in the objects index.
+        var row = head.closest('tr');
+        if (row) {
+            row.classList.toggle('oi-open', open);
+        }
     }
 
     /**
@@ -6057,17 +6037,9 @@
              * before the reader has touched anything.
              */
             rebuildEnrichAll(panel);
-            sizeEnrichPane(panel);
             enrichAutoFire(panel);
             openLinkedEnrichModule(panel);
         });
-        if (panels.length && !window.__vpEnrichSized) {
-            window.__vpEnrichSized = true;
-            window.addEventListener('resize', function () {
-                document.querySelectorAll('[data-vp-enrich]')
-                    .forEach(sizeEnrichPane);
-            });
-        }
     }
 
     /**
@@ -6164,45 +6136,10 @@
         var show = pane.querySelector(
             '[data-vp-e-run][data-vp-e-mode="stored"]'
         );
-        if (show && !show.disabled) {
+        if (show && !show.disabled && !pane.querySelector('[data-vp-e-result]')) {
             runEnrichModule(show);
         }
         return true;
-    }
-
-    /**
-     * Fit the answer to what is left of the screen.
-     *
-     * **So that `Run n selected` is on it.** The rail pins that button
-     * to its own foot and the split stretches both columns to the
-     * taller of them, so an answer of any length used to push the
-     * button a page-scroll below the answer it applies to. The pane
-     * scrolls instead, and what it is capped at is whatever the
-     * viewport has left under it — which is a measurement and not a
-     * constant, because what sits above this tab on the page is a
-     * header, a fact strip and a profile block of no fixed height.
-     *
-     * The stylesheet carries a viewport-relative cap for the moment
-     * before this runs and for the case where it does not. Below the
-     * breakpoint the two columns stack and neither is capped: a
-     * scroller inside a scroller on a phone is two thumbs' worth of
-     * the same gesture.
-     *
-     * @param {Element} panel
-     */
-    function sizeEnrichPane(panel) {
-        var pane = panel.querySelector('.vp-e-pane');
-        if (!pane) {
-            return;
-        }
-        if (window.innerWidth < 992) {
-            pane.style.maxHeight = '';
-            return;
-        }
-        pane.style.maxHeight = '';
-        var top = pane.getBoundingClientRect().top;
-        var room = window.innerHeight - top - 16;
-        pane.style.maxHeight = Math.round(Math.max(416, room)) + 'px';
     }
 
     /**
@@ -6672,6 +6609,16 @@
             return true;
         }
 
+        // The whole object cell opens it, as in the objects index.
+        var objCell = event.target.closest('[data-vp-e-obj] td.oi-col-object');
+        if (objCell && !event.target.closest('a, button:not([data-vp-e-disc])')) {
+            var objDisc = objCell.querySelector('[data-vp-e-disc]');
+            if (objDisc) {
+                toggleEnrichDisc(objDisc);
+                return true;
+            }
+        }
+
         var disc = event.target.closest('[data-vp-e-disc]');
         if (disc) {
             toggleEnrichDisc(disc);
@@ -6682,7 +6629,11 @@
         if (pick) {
             var panel = pick.closest('[data-vp-enrich]');
             if (panel) {
-                pickEnrichModule(panel, pick.dataset.vpEPick);
+                if (pick.dataset.vpEPick === '__all') {
+                    pickEnrichModule(panel, '__all');
+                } else {
+                    openEnrichModule(panel, pick.dataset.vpEPick);
+                }
             }
             return true;
         }
@@ -6738,7 +6689,6 @@
         }
         return false;
     }
-
 
     /* ==================================================================
      * Timeline tab
