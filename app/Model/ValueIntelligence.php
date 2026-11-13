@@ -2902,12 +2902,19 @@ class ValueIntelligence extends AppModel
         array $options = array()
     ) {
         $context = $this->sightingContext($user, $value, $options);
+        $rows = ValueStatsTool::sightingList(
+            $context['sightings'],
+            $context['sighted']
+        );
         return array(
             'value' => $value,
-            'sighting_rows' => ValueStatsTool::sightingList(
-                $context['sightings'],
-                $context['sighted']
-            ),
+            'sighting_rows' => $rows,
+            // What each row's event reference shows on hover.
+            'sighting_events' => $this->eventPeeks($user, array_values(array_unique(
+                array_map(function ($row) {
+                    return (int)$row['against']['event'];
+                }, $rows)
+            ))),
             'sighting_notes' => ValueStatsTool::sightingNotes(
                 $context['totals']
             ),

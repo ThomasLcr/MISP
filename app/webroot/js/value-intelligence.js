@@ -2337,7 +2337,6 @@
     }
 
 
-
     /* ==================================================================
      * Charts
      * ------------------------------------------------------------------
@@ -3303,7 +3302,6 @@
         brush: null,
         expanded: false,
         main: null,
-        nav: null,
         // The visible span, which the presets and the four buttons both
         // set. Null until the panel has a plan.
         zoom: null,
@@ -3317,16 +3315,7 @@
         rangeAt: null,
     };
 
-    var SIGHT_ORG_COLOURS = 6;
-    var SIGHT_CURVE_COLOURS = 2;
-
-    /*
-     * The three kinds of report, bottom of the stack upwards, and the
-     * only place their order is written down. Every series on the count
-     * axis is one of these for one organisation — a sighting is not
-     * attributed while a false positive is pooled, which is what this
-     * tab used to do.
-     */
+    // The three kinds of report, in the order they are drawn and read.
     var SIGHT_KINDS = ['sighting', 'fp', 'expiration'];
 
     /**
@@ -3486,20 +3475,6 @@
     function sightInvalidate() {
         sight.range = null;
         sight.rangeAt = null;
-    }
-
-    /**
-     * A categorical colour by position, cycling once the palette runs
-     * out. Named variables rather than literals: the canvas resolves
-     * them against the page, so the ramp follows the theme.
-     *
-     * @param {number} index
-     * @param {number} count How many the palette defines
-     * @param {string} name `org` or `curve`
-     * @return {string}
-     */
-    function sightHue(index, count, name) {
-        return 'var(--vp-sight-' + name + '-' + ((index % count) + 1) + ')';
     }
 
     /* ------------------------------------------------------------------
@@ -3720,32 +3695,6 @@
     }
 
     /**
-     * The colour a segment of one kind takes.
-     *
-     * Colour is identity here and direction is meaning, so a sighting
-     * is the organisation's own hue. The two contradicting kinds keep a
-     * colour of their own because the axis can only say `argues
-     * against` and there are two ways of doing that — and below the
-     * line they never touch an organisation hue, which is what retires
-     * the collision that used to matter most: the benign green against
-     * a brown organisation at ΔE 4.1, and the red that replaced it at
-     * 9.3, were both pairs that can no longer meet.
-     *
-     * @param {string} kind One of SIGHT_KINDS
-     * @param {number} i Position in `data.orgs`
-     * @return {string}
-     */
-    function sightKindHue(kind, i) {
-        if (kind === 'fp') {
-            return 'var(--vp-sight-fp)';
-        }
-        if (kind === 'expiration') {
-            return 'var(--vp-sight-exp)';
-        }
-        return sightHue(i, SIGHT_ORG_COLOURS, 'org');
-    }
-
-    /**
      * How far the count axis reaches each way, over the drawn range and
      * over the kinds currently switched on.
      *
@@ -3795,132 +3744,128 @@
     }
 
     /**
-     * The overlay itself: one stacked bar dataset per organisation per
-     * kind of report on the count axis, and the value's remaining shelf
-     * life on the right-hand axis.
+     * The chart: one bar per bucket and kind, summed over the
+     * organisations (sightings above the line, false positives and
+     * expirations below it), and under them, on a stacked scale sharing
+     * the time axis, the lifetime left. The brush lies over the plot area.
      *
-     * Three datasets per organisation rather than one each plus two
-     * pooled ones. Pooling meant a sighting had a reporter and a
-     * contradiction had none — the legend filed `False positive` under
-     * `Reported by` as though it were an organisation, and the readout
-     * listed it beside real ones. Now every count on this axis belongs
-     * to somebody, which is also what makes switching an organisation
-     * off take its contradictions with it.
-     *
-     * The kinds go in whole: every organisation's sightings, then every
-     * organisation's false positives, then the expirations. So the
-     * stack reads as three coloured blocks rather than interleaving red
-     * through the organisation hues.
-     *
-     * The thresholds used to be here too, as a dotted dataset each plus
-     * an inline plugin that chipped their value over the plot. They are
-     * gone twice over: a threshold was a constant drawn per model and
-     * listed again in the readout at every column, and since phase 5
-     * there is no model and no threshold — expiry is the line reaching
-     * the axis.
-     *
-     * An organisation the legend has switched off is skipped rather
-     * than emptied, and the colour still comes from its position in
-     * `data.orgs` — filtering the series must not repaint the ones that
-     * stayed.
-     *
-     * @param {Element} el
-     * @return {Object}
+     * @param {HTMLCanvasElement} el
+     * @return {Chart}
      */
     function buildSightMain(el) {
-        var data = sight.data;
         var range = sightRange();
+        var labels = sight.data.labels || {};
+        var kindLabels = labels.kinds || {};
+        var hues = {
+            sighting: 'var(--vp-sight-yes)',
+            fp: 'var(--vp-sight-fp)',
+            expiration: 'var(--vp-sight-exp)',
+        };
         var datasets = [];
-
-        /*
-         * A hairline of the page's own ground between stacked segments.
-         * Without it a stack of three organisations with counts 1, 1, 1
-         * is one bar in three tones, and the tones are what the reader
-         * is being asked to count. It matters more now that two
-         * organisations' false positives sit on each other in the same
-         * red.
-         *
-         * The hairline goes on the side away from the axis, which is
-         * the top of a bar that grows up and the bottom of one that
-         * grows down.
-         */
-        function segment(sign, extra) {
-            return Object.assign({
-                type: 'bar',
-                stack: 'reports',
-                yAxisID: 'y',
-                order: 3,
-                borderColor: 'var(--bs-body-bg)',
-                borderWidth: sign > 0
-                    ? { top: 1, right: 0, bottom: 0, left: 0 }
-                    : { top: 0, right: 0, bottom: 1, left: 0 },
-                borderSkipped: false,
-            }, extra);
-        }
-
-        /*
-         * Three kinds by however many organisations is a lot of series
-         * that are entirely zero — twenty-three organisations would be
-         * sixty-nine datasets with perhaps twenty carrying anything, and
-         * most organisations never file a contradiction at all. A
-         * series with nothing in the drawn range is left out: it paints
-         * no pixel and, being filtered out of the readout anyway,
-         * contributes nothing but a dataset for Chart.js to walk. The
-         * bar hue is read off `i` rather than off the dataset's
-         * position, so leaving one out never moves a colour.
-         */
         SIGHT_KINDS.forEach(function (kind) {
-            if (!sight.shown[kind]) {
+            var sums = range.labels.map(function (label, at) {
+                return (range.kinds[kind] || []).reduce(function (sum, counts) {
+                    return sum + (counts[at] || 0);
+                }, 0);
+            });
+            if (!sums.some(Boolean)) {
                 return;
             }
             var sign = sightKindSign(kind);
-            range.kinds[kind].forEach(function (counts, i) {
-                if (sight.hiddenOrgs[i] || !counts.some(Boolean)) {
-                    return;
-                }
-                datasets.push(segment(sign, {
-                    label: data.orgs[i],
-                    vpKind: kind,
-                    // Signed for the plot only. `range.kinds` stays
-                    // counts, so the navigator, the legend and the
-                    // readout keep summing magnitudes.
-                    data: sign > 0 ? counts : counts.map(function (n) {
-                        return -n;
-                    }),
-                    backgroundColor: sightKindHue(kind, i),
-                }));
+            datasets.push({
+                type: 'bar',
+                label: kindLabels[kind] || kind,
+                vpKind: kind,
+                stack: 'reports',
+                yAxisID: 'y',
+                // An empty bucket draws nothing rather than a stub.
+                data: sums.map(function (n) { return n === 0 ? null : sign * n; }),
+                backgroundColor: hues[kind],
+                borderRadius: 2,
+                maxBarThickness: 28,
+                minBarLength: 2,
             });
         });
-
-        range.curves.forEach(function (curve, i) {
-            var colour = sightHue(i, SIGHT_CURVE_COLOURS, 'curve');
+        var life = range.curves.length ? range.curves[0] : null;
+        if (life) {
             datasets.push({
                 type: 'line',
-                label: curve.model,
-                data: curve.points,
-                borderColor: colour,
-                backgroundColor: colour,
-                borderWidth: 2,
+                label: labels.score || '',
+                data: life.points,
+                yAxisID: 'life',
+                borderColor: 'var(--vp-sight-curve-1)',
+                backgroundColor: 'var(--vp-sight-life-fill)',
+                borderWidth: 1.5,
                 pointRadius: 0,
                 pointHoverRadius: 3,
-                tension: 0.25,
+                tension: 0.2,
                 spanGaps: false,
-                yAxisID: 'score',
-                order: 1,
+                fill: 'origin',
             });
-        });
-
-        /*
-         * Both axes are pinned rather than left to Chart.js, so that
-         * one pixel row means zero on both of them. The score keeps its
-         * 0–100 over the band above the line and is given the same
-         * negative share below it, where it has nothing to draw — so a
-         * model sitting at 0 rests exactly on the count axis's zero
-         * instead of cutting through the contradictions underneath.
-         */
+        }
         var bounds = sightBounds(range);
-        var scoreFloor = -100 * (bounds.down / bounds.up);
-
+        var zeroLine = window.VP.chart.resolve('var(--bs-secondary-color)', el);
+        var tick = {
+            color: 'var(--bs-secondary-color)',
+            font: { size: 10 },
+        };
+        var scales = {
+            x: {
+                stacked: true,
+                grid: { display: false },
+                border: { color: 'var(--bs-border-color)' },
+                ticks: Object.assign({ maxRotation: 0, autoSkipPadding: 24, align: 'inner' }, tick),
+            },
+            y: {
+                position: 'left',
+                stacked: true,
+                stack: 'sight',
+                stackWeight: 4,
+                min: -bounds.down,
+                max: bounds.up,
+                border: { display: false },
+                grid: {
+                    // The zero line only; the colour is resolved here
+                    // because a callback's answer is not.
+                    color: function (context) {
+                        return context.tick && context.tick.value === 0
+                            ? zeroLine
+                            : 'transparent';
+                    },
+                },
+                ticks: Object.assign({
+                    precision: 0,
+                    // Only the ends and the line: a count, never negative.
+                    callback: function (value) {
+                        return value === bounds.up || value === -bounds.down || value === 0
+                            ? Math.abs(value) : '';
+                    },
+                }, tick),
+            },
+        };
+        if (life) {
+            // Defined first, so Chart.js stacks it under the bars.
+            var bars = scales.y;
+            delete scales.y;
+            scales.life = {
+                axis: 'y',
+                position: 'left',
+                stack: 'sight',
+                stackWeight: 1,
+                offset: true,
+                min: 0,
+                max: 100,
+                border: { display: false },
+                grid: { display: false },
+                ticks: Object.assign({
+                    stepSize: 100,
+                    callback: function (value) {
+                        return value === 100 ? '100%' : '';
+                    },
+                }, tick),
+            };
+            scales.y = bars;
+        }
         var config = window.VP.chart.resolve({
             data: { labels: range.labels, datasets: datasets },
             options: {
@@ -3928,88 +3873,12 @@
                 maintainAspectRatio: false,
                 animation: false,
                 interaction: { mode: 'index', intersect: false },
-                scales: {
-                    x: {
-                        stacked: true,
-                        grid: { display: false },
-                        border: { color: 'var(--bs-border-color)' },
-                        ticks: {
-                            color: 'var(--bs-secondary-color)',
-                            maxRotation: 0,
-                            autoSkipPadding: 24,
-                            font: { size: 10 },
-                        },
-                    },
-                    y: {
-                        stacked: true,
-                        min: -bounds.down,
-                        max: bounds.up,
-                        border: { display: false },
-                        grid: {
-                            color: 'var(--bs-border-color)',
-                            /*
-                             * The zero is the whole encoding, so it is
-                             * drawn as a line and not as another
-                             * gridline. Everything below it argues
-                             * against the value.
-                             */
-                            lineWidth: function (context) {
-                                return context.tick && context.tick.value === 0
-                                    ? 2
-                                    : 1;
-                            },
-                        },
-                        ticks: {
-                            color: 'var(--bs-secondary-color)',
-                            precision: 0,
-                            font: { size: 10 },
-                            // A count, never a negative number: the
-                            // direction is what the sign is saying and
-                            // `-2 reports` is not a quantity.
-                            callback: function (value) {
-                                return Math.abs(value);
-                            },
-                        },
-                    },
-                    score: {
-                        display: range.curves.length > 0,
-                        position: 'right',
-                        min: scoreFloor,
-                        max: 100,
-                        border: { display: false },
-                        grid: { drawOnChartArea: false },
-                        ticks: {
-                            color: 'var(--bs-secondary-color)',
-                            stepSize: 25,
-                            font: { size: 10 },
-                            // The band below zero exists to hold the
-                            // two scales' zeroes together, and a score
-                            // never reaches it. Labelling it would
-                            // claim a scale of negative scores.
-                            callback: function (value) {
-                                return value < 0 ? '' : value;
-                            },
-                        },
-                    },
-                },
+                scales: scales,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        // A stack of ten one-report bars would otherwise
-                        // list ten organisations reporting zero.
                         filter: function (item) {
-                            return item.parsed.y !== 0
-                                || item.dataset.type === 'line';
-                        },
-                        // The reports first, the scores after, whatever
-                        // order the datasets went in — the readout is
-                        // grouped and the groups have to stay whole.
-                        itemSort: function (a, b) {
-                            var rank = function (item) {
-                                return item.dataset.type === 'line' ? 1 : 0;
-                            };
-                            return rank(a) - rank(b)
-                                || a.datasetIndex - b.datasetIndex;
+                            return item.parsed.y !== 0 || item.dataset.type === 'line';
                         },
                         enabled: false,
                         external: sightTip,
@@ -4017,58 +3886,21 @@
                 },
             },
         }, el);
-
         config.type = 'bar';
-        return new Chart(el, config);
-    }
-
-    /**
-     * The navigator: every report in the range as one bar per bucket,
-     * with no axes, so the brush above it can be positioned as a plain
-     * fraction of the strip's width.
-     *
-     * @param {Element} el
-     * @return {Object}
-     */
-    function buildSightNav(el) {
-        var range = sightRange();
-        // Every report of every kind, whatever the chart above is
-        // currently drawing: the navigator is the range, not the view.
-        var totals = range.labels.map(function (label, i) {
-            var sum = 0;
-            SIGHT_KINDS.forEach(function (kind) {
-                range.kinds[kind].forEach(function (counts) {
-                    sum += counts[i];
-                });
-            });
-            return sum;
-        });
-        var config = window.VP.chart.resolve({
-            type: 'bar',
-            data: {
-                labels: range.labels,
-                datasets: [{
-                    data: totals,
-                    backgroundColor: 'var(--vp-sight-nav)',
-                    barPercentage: 1,
-                    categoryPercentage: 1,
-                }],
+        // The brush covers the plot area, so a drag maps onto the bars.
+        config.plugins = [{
+            id: 'vpSightBrushArea',
+            afterLayout: function (chart) {
+                var brush = chart.canvas.parentNode.querySelector('[data-misp-brush]');
+                if (!brush || !chart.chartArea) {
+                    return;
+                }
+                brush.style.left = chart.chartArea.left + 'px';
+                brush.style.right = (chart.width - chart.chartArea.right) + 'px';
+                brush.style.top = chart.chartArea.top + 'px';
+                brush.style.bottom = (chart.height - chart.chartArea.bottom) + 'px';
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                layout: { padding: 0 },
-                scales: {
-                    x: { display: false },
-                    y: { display: false, beginAtZero: true },
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: false },
-                },
-            },
-        }, el);
+        }];
         return new Chart(el, config);
     }
 
@@ -4076,49 +3908,9 @@
      * @param {Element} panel
      */
     function updateSightLegend(panel) {
-        var range = sightRange();
-        var labels = sight.data.labels;
-        panel.querySelectorAll('[data-vp-sight-key-org]')
-            .forEach(function (key) {
-                var i = parseInt(key.dataset.vpSightKeyOrg, 10);
-                setText(key, '[data-vp-sight-key-count]', range.orgCounts[i]);
-                /*
-                 * Every report the organisation filed in the range, of
-                 * any kind — the heading over these keys says `Reported
-                 * by` and a contradiction is a report. The `title`
-                 * carries the split, because the swatch is only the
-                 * colour of the sightings among them.
-                 */
-                var per = range.orgByKind[i];
-                var counted = labels.kindCounted || {};
-                key.title = SIGHT_KINDS.filter(function (kind) {
-                    return per[kind] > 0;
-                }).map(function (kind) {
-                    var forms = counted[kind] || [kind, kind];
-                    return per[kind] + ' '
-                        + forms[per[kind] === 1 ? 0 : 1];
-                }).join(' · ');
-                /*
-                 * The count is the range's and stays put whether or not
-                 * the bars are drawn: switching an organisation off asks
-                 * the chart a question, not the data.
-                 */
-                key.setAttribute(
-                    'aria-pressed',
-                    sight.hiddenOrgs[i] ? 'false' : 'true'
-                );
-                // Nothing left to take out while every kind is switched
-                // off above.
-                key.disabled = !SIGHT_KINDS.some(function (kind) {
-                    return sight.shown[kind];
-                });
-            });
-        setText(panel, '[data-vp-sight-key-fp]', range.kindCounts.fp);
-        setText(panel, '[data-vp-sight-key-exp]', range.kindCounts.expiration);
-
         var axis = panel.querySelector('[data-vp-sight-axis-left]');
         if (axis) {
-            axis.textContent = labels.perUnit[range.unit];
+            axis.textContent = sight.data.labels.perUnit[sightRange().unit];
         }
     }
 
@@ -4149,6 +3941,11 @@
             sight.brush || { from: 0, to: count - 1 },
             count
         );
+        // Over the chart itself, the whole range is no selection to draw.
+        var layer = panel.querySelector('[data-misp-brush]');
+        if (layer) {
+            layer.classList.toggle('is-whole', !sight.brush);
+        }
 
         var window_ = sightWindow();
         var label = panel.querySelector('[data-vp-sight-window]');
@@ -4211,10 +4008,12 @@
         // model happened to send.
         applySightOrder(list);
 
+        // The header's type switch, if any.
+        var kind = list.dataset.vpSightKind || 'all';
         list.querySelectorAll('tbody tr').forEach(function (row) {
             var day = row.dataset.vpSightDate;
-            var keep = !window_
-                || (day >= window_.from && day <= window_.to);
+            var keep = (!window_ || (day >= window_.from && day <= window_.to))
+                && (kind === 'all' || row.dataset.vpSightType === kind);
             if (keep) {
                 matched.push(row);
             }
@@ -4278,9 +4077,6 @@
     function refreshSight(panel) {
         if (sight.main) {
             sight.main.refresh();
-        }
-        if (sight.nav) {
-            sight.nav.refresh();
         }
         paintSightZoom(panel);
         updateSightLegend(panel);
@@ -4350,11 +4146,9 @@
      * @param {Element} panel
      */
     function syncSightPreset(panel) {
-        var select = panel.querySelector('[data-vp-sight-range]');
-        if (!select || !sight.zoom || !sight.data) {
+        if (!sight.zoom || !sight.data) {
             return;
         }
-        var custom = select.querySelector('[data-vp-sight-range-custom]');
         var span = sight.zoom.span();
         var matched = null;
         sight.data.spans.forEach(function (preset) {
@@ -4362,15 +4156,14 @@
                 matched = preset.key;
             }
         });
-        if (custom) {
-            custom.hidden = matched !== null;
-        }
         if (matched !== null) {
-            select.value = matched;
             sight.rangeKey = matched;
-        } else if (custom) {
-            custom.selected = true;
         }
+        panel.querySelectorAll('[data-vp-sight-span]').forEach(function (button) {
+            var on = button.dataset.vpSightSpan === matched;
+            button.classList.toggle('active', on);
+            button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
     }
 
     /**
@@ -4424,14 +4217,7 @@
             sightToSpan(sight.rangeKey);
             sight.shown = { sighting: true, fp: true, expiration: true };
             sight.hiddenOrgs = {};
-            panel.querySelectorAll('[data-vp-sight-type]')
-                .forEach(function (button) {
-                    if (button.disabled) {
-                        sight.shown[button.dataset.vpSightType] = false;
-                    }
-                });
             sight.main = window.VP.chart.boot('vp-sight-main', buildSightMain);
-            sight.nav = window.VP.chart.boot('vp-sight-nav', buildSightNav);
             wireSightBrush(panel);
             var zoom = panel.querySelector('[data-vp-zoom]');
             if (zoom) {
@@ -4464,30 +4250,15 @@
      */
     function onSightClick(event) {
         var panel = document.querySelector('[data-vp-sight]');
-
-        var toggle = event.target.closest('[data-vp-sight-type]');
-        if (toggle && !toggle.disabled && panel) {
-            var key = toggle.dataset.vpSightType;
-            sight.shown[key] = !sight.shown[key];
-            toggle.setAttribute('aria-pressed', String(sight.shown[key]));
-            refreshSight(panel);
-            return true;
-        }
-
-        /*
-         * The legend as a filter. A stack of a dozen organisations is
-         * a wall at the one bar the reader cares about, and until now
-         * the only way to thin it was the three type toggles, which
-         * cannot say `just this one`.
-         */
-        var org = event.target.closest('[data-vp-sight-key-org]');
-        if (org && !org.disabled && panel) {
-            var at = parseInt(org.dataset.vpSightKeyOrg, 10);
-            if (sight.hiddenOrgs[at]) {
-                delete sight.hiddenOrgs[at];
-            } else {
-                sight.hiddenOrgs[at] = true;
-            }
+        var spanButton = event.target.closest('[data-vp-sight-span]');
+        if (spanButton && panel) {
+            // A wider window is a different set of buckets, so a brush
+            // drawn over the old ones no longer points at anything.
+            sight.rangeKey = spanButton.dataset.vpSightSpan;
+            sight.brush = null;
+            sight.expanded = false;
+            sightToSpan(sight.rangeKey);
+            syncSightPreset(panel);
             refreshSight(panel);
             return true;
         }
@@ -4499,6 +4270,22 @@
                 paintSightBrush(panel);
             }
             refreshSightList();
+            return true;
+        }
+
+        var kindButton = event.target.closest('[data-vp-sight-kind]');
+        if (kindButton) {
+            var list = kindButton.closest('[data-vp-sight-list]');
+            if (list) {
+                list.dataset.vpSightKind = kindButton.dataset.vpSightKind;
+                list.querySelectorAll('[data-vp-sight-kind]').forEach(function (b) {
+                    var on = b === kindButton;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                });
+                sight.expanded = false;
+                refreshSightList();
+            }
             return true;
         }
 
@@ -10162,22 +9949,6 @@
                 && event.target.matches('[data-vp-page-size-pick]')) {
                 changePageSize(event.target);
                 return;
-            }
-
-            if (event.target.matches
-                && event.target.matches('[data-vp-sight-range]')) {
-                // A wider window is a different set of buckets, so a
-                // brush drawn over the old ones no longer points at
-                // anything the reader chose.
-                sight.rangeKey = event.target.value;
-                sight.brush = null;
-                sight.expanded = false;
-                sightToSpan(sight.rangeKey);
-                var sightPanel = document.querySelector('[data-vp-sight]');
-                if (sightPanel) {
-                    syncSightPreset(sightPanel);
-                    refreshSight(sightPanel);
-                }
             }
 
             if (event.target.matches

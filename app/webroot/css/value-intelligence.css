@@ -1091,6 +1091,74 @@ tr.vp-occ-deleted td {
     font-variant-numeric: tabular-nums;
 }
 
+.vp-reporter-name .vp-orglink > span {
+    max-width: 100%;
+}
+
+/* The Reporters card's key: the chart's colours, only the kinds present. */
+.vp-reporters-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .9rem;
+    margin-top: .6rem;
+    padding-top: .5rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+}
+
+.vp-reporters-key > span {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+/* Report a sighting: the three kinds side by side, in the chart's colours. */
+.vp-sight-add {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .4rem;
+}
+
+.vp-sight-add-btn {
+    --vp-add-hue: var(--vp-sight-yes);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .3rem;
+    padding: .55rem .25rem;
+    border: 1px solid color-mix(in srgb, var(--vp-add-hue) 45%, var(--bs-border-color));
+    border-radius: .5rem;
+    background: color-mix(in srgb, var(--vp-add-hue) 8%, var(--bs-body-bg));
+    color: color-mix(in srgb, var(--vp-add-hue) 80%, var(--bs-body-color));
+    font-size: .74rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.vp-sight-add-btn.is-fp {
+    --vp-add-hue: var(--vp-sight-fp);
+}
+
+.vp-sight-add-btn.is-expiration {
+    --vp-add-hue: var(--vp-sight-exp);
+}
+
+.vp-sight-add-btn > :first-child {
+    font-size: .95rem;
+}
+
+.vp-sight-add-btn:disabled {
+    cursor: not-allowed;
+    opacity: .65;
+}
+
+.vp-sight-add-btn:not(:disabled):hover,
+.vp-sight-add-btn:not(:disabled):focus-visible {
+    background: color-mix(in srgb, var(--vp-add-hue) 16%, var(--bs-body-bg));
+}
+
 /* ==================================================================
  * Reporting — who put the value here, and when
  * ------------------------------------------------------------------
@@ -1440,9 +1508,10 @@ tr.vp-occ-deleted td {
 
 .vp-shelf-days {
     flex: 1 1 auto;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
+    font-weight: 700;
     text-align: right;
-    color: var(--bs-secondary-color);
+    color: var(--bs-emphasis-color);
     font-variant-numeric: tabular-nums;
 }
 
@@ -1525,6 +1594,39 @@ tr.vp-occ-deleted td {
     font-size: 0.68rem;
     line-height: 1.45;
     color: var(--bs-secondary-color);
+}
+
+/* The facts under the bar: last confirmation, the type's lifetime, the
+   expiry, each on its own line behind an icon. */
+.vp-shelf-line {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    margin-top: .4rem;
+    color: var(--bs-body-color);
+    font-size: .76rem;
+    line-height: 1.4;
+}
+
+.vp-shelf-line > i {
+    flex: 0 0 .9rem;
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+    text-align: center;
+}
+
+/* A rail note with its icon in front. */
+.vp-shelf-note {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    margin: 0;
+}
+
+.vp-shelf-note > i {
+    flex: 0 0 .9rem;
+    font-size: .7rem;
+    text-align: center;
 }
 
 /*
@@ -3965,8 +4067,8 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
      */
     --vp-sight-curve-1: #7c3aed;
     --vp-sight-curve-2: #155e75;
-
-    --vp-sight-nav: var(--bs-secondary-color);
+    /* The lifetime band's fill under the curve. */
+    --vp-sight-life-fill: rgba(124, 58, 237, .14);
 }
 
 [data-misp-mode="dark"] {
@@ -3985,6 +4087,7 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
     --vp-sight-fp: #cf4a63;
     --vp-sight-curve-1: #a78bfa;
     --vp-sight-curve-2: #a5f3fc;
+    --vp-sight-life-fill: rgba(167, 139, 250, .2);
 
     /*
      * Darker than the light theme's orange, which is the one step this
@@ -4013,28 +4116,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
  * ------------------------------------------------------------------ */
 
 /*
- * Two scales, two captions. An overlay that labels neither axis is
- * asking the reader to assume the bars and the line share a scale, and
- * here they emphatically do not.
- */
-.vp-sight-axes {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 6px;
-}
-
-.vp-sight-axis-right {
-    text-align: right;
-}
-
-.vp-sight-main {
-    position: relative;
-    height: 260px;
-}
-
-/*
  * A value with occurrences but no sightings keeps its axes and says so
  * across them. Blanking the panel would lose the distinction the rail
  * beside it depends on: no reports is not the same as no score.
@@ -4054,253 +4135,95 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 }
 
 /* ------------------------------------------------------------------
- * The navigator
+ * The counts, the chart and its key
  * ------------------------------------------------------------------ */
 
-.vp-sight-nav {
-    position: relative;
-    height: 40px;
-    margin-top: 4px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    background: var(--bs-tertiary-bg);
-    overflow: hidden;
-}
-
-.vp-sight-nav > canvas {
-    position: absolute;
-    inset: 0;
-}
-
-/* The navigator is full width, so the caption fits beside the buttons
-   rather than taking a line of its own — which is what the property
-   the shared rule reads is for. */
-.vp-sight-zoom {
-    --vp-zoom-where-basis: auto;
-    margin-top: 2px;
-    margin-bottom: 10px;
-}
-
-.vp-sight-nav-caption {
+.vp-sight-stats {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 5px;
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
+    flex-wrap: wrap;
+    gap: .35rem 1.4rem;
+    padding: .85rem 1rem .25rem;
 }
 
-.vp-sight-nav-window {
-    font-family: var(--bs-font-monospace);
-    font-size: 0.68rem;
-    white-space: nowrap;
-    color: var(--bs-body-color);
-}
-
-/* ------------------------------------------------------------------
- * Type toggles and the range select
- * ------------------------------------------------------------------ */
-
-.vp-sight-toggle {
+.vp-sight-stat {
     display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 9px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 999px;
-    background: var(--bs-body-bg);
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--bs-body-color);
-}
-
-.vp-sight-toggle:hover:not(:disabled) {
-    border-color: var(--primary);
-}
-
-/*
- * Unpressed is the exception, so it is what gets the treatment: the
- * default state of a type that exists is drawn.
- */
-.vp-sight-toggle[aria-pressed="false"] {
+    align-items: baseline;
+    gap: .4rem;
     color: var(--bs-secondary-color);
+    font-size: .82rem;
 }
 
-.vp-sight-toggle[aria-pressed="false"] .vp-sight-toggle-swatch {
-    background: transparent;
-    border-color: var(--bs-secondary-color);
+.vp-sight-stat > b {
+    color: var(--bs-emphasis-color);
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
 }
 
-/*
- * A type nobody has ever reported keeps its control and its count, and
- * says why in a title. Hiding it would take away the only place the
- * page states that no expiration exists for this value.
- */
-.vp-sight-toggle:disabled {
-    opacity: 0.55;
+.vp-sight-stat.is-zero > b {
+    color: var(--bs-secondary-color);
+    font-weight: 600;
 }
 
-.vp-sight-toggle-swatch {
+.vp-sight-dot {
+    display: inline-block;
+    flex: 0 0 auto;
     width: 9px;
     height: 9px;
-    border: 1px solid transparent;
     border-radius: 2px;
+    align-self: center;
 }
 
-/*
- * The one toggle whose bars are not one colour. It used to show
- * `--vp-sight-org-1`, which is whichever organisation ranks first — so
- * the swatch for `Sightings` was one reporter's blue standing for all
- * of them, and it changed hands when the stack's ordering rule did.
- * Three stops of the ramp instead: the claim is `these are drawn in the
- * organisation colours`, which is a claim about the ramp and not about
- * a member of it.
- */
-.vp-sight-swatch-sighting {
-    background: linear-gradient(
-        135deg,
-        var(--vp-sight-org-1) 0%,
-        var(--vp-sight-org-1) 33%,
-        var(--vp-sight-org-2) 33%,
-        var(--vp-sight-org-2) 66%,
-        var(--vp-sight-org-4) 66%
-    );
+.vp-sight-dot.is-sighting { background: var(--vp-sight-yes); }
+.vp-sight-dot.is-fp { background: var(--vp-sight-fp); }
+.vp-sight-dot.is-expiration { background: var(--vp-sight-exp); }
+.vp-sight-dot.is-life { background: var(--vp-sight-curve-1); }
+
+.vp-sight-body {
+    padding: .25rem 1rem .85rem;
 }
 
-.vp-sight-swatch-fp {
-    background: var(--vp-sight-fp);
+.vp-sight-main {
+    height: 190px;
 }
 
-.vp-sight-swatch-expiration {
-    background: var(--vp-sight-exp);
+.vp-sight-main.has-life {
+    height: 230px;
 }
 
-.vp-sight-toggle-count {
-    font-variant-numeric: tabular-nums;
-    color: var(--bs-secondary-color);
+/* The brush lies over the bars; with nothing selected it draws nothing. */
+.vp-sight-main .misp-brush.is-whole .misp-brush-window {
+    display: none;
 }
 
-.vp-sight-range {
-    width: auto;
-    font-size: 0.72rem;
-    padding-top: 2px;
-    padding-bottom: 2px;
-}
-
-/* ------------------------------------------------------------------
- * The legend
- * ------------------------------------------------------------------ */
-
-/*
- * Two groups, each behind its own heading and on its own row. The chart
- * carries two scales and the legend has to say which key belongs to
- * which; one run of keys said that a decay score was a seventh
- * reporter.
- *
- * Stacked rather than side by side because the reporter group is
- * however many organisations have reported the value — two on one
- * value and twenty-three on another — so a rule between the groups
- * would land wherever that run happened to wrap. Down the page it is
- * always between them.
- */
-.vp-sight-legend {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-    margin-top: 10px;
-    font-size: 0.72rem;
-    color: var(--bs-body-color);
-}
-
-.vp-sight-legend-group {
+.vp-sight-cap {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 14px;
-}
-
-/*
- * Between the groups, not after each — which group is first depends on
- * the value: one that nobody has reported opens on the decay score.
- */
-.vp-sight-legend-group + .vp-sight-legend-group {
-    padding-top: 6px;
-    border-top: 1px solid var(--bs-border-color);
-}
-
-.vp-sight-legend-head {
+    gap: .25rem 1rem;
+    margin-top: .4rem;
     color: var(--bs-secondary-color);
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: .76rem;
 }
 
 .vp-sight-key {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: .35rem;
 }
 
-.vp-sight-key > b {
-    font-variant-numeric: tabular-nums;
+.vp-sight-cap-end {
+    margin-left: auto;
+}
+
+.vp-sight-chartnote {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem 1rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    background: var(--bs-tertiary-bg);
     color: var(--bs-secondary-color);
-}
-
-/*
- * A reporter key is a button. It looks like the span it replaced until
- * the pointer is on it, because a legend that announces itself as a
- * control is a legend nobody reads as a legend.
- */
-.vp-sight-key-org {
-    padding: 1px 5px;
-    border: 0;
-    border-radius: 4px;
-    background: none;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-}
-
-.vp-sight-key-org:hover:not(:disabled),
-.vp-sight-key-org:focus-visible {
-    background: var(--bs-secondary-bg);
-}
-
-/*
- * Switched off, not gone. The name and its count stay legible — the
- * count is a fact about the range either way — and the swatch hollows
- * out, which is the state the chart is in.
- */
-.vp-sight-key-org[aria-pressed="false"] {
-    color: var(--bs-secondary-color);
-}
-
-.vp-sight-key-org[aria-pressed="false"] .vp-sight-swatch {
-    background: none;
-    box-shadow: inset 0 0 0 1.5px var(--vp-sight-hue);
-    opacity: 0.65;
-}
-
-.vp-sight-key-org:disabled {
-    cursor: default;
-    opacity: 0.45;
-}
-
-.vp-sight-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    background: var(--vp-sight-hue);
-}
-
-/* A line in the legend is a line, not a block: the reader is matching
- * it against a stroke on the canvas. */
-.vp-sight-swatch-line {
-    height: 3px;
-    border-radius: 2px;
+    font-size: .78rem;
 }
 
 /* ------------------------------------------------------------------
@@ -4402,115 +4325,58 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 }
 
 /* ------------------------------------------------------------------
- * The note under the chart
- * ------------------------------------------------------------------ */
-
-.vp-sight-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 12px 0 0;
-    padding: 9px 11px;
-    border-radius: 4px;
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    font-size: 0.76rem;
-    line-height: 1.45;
-    color: var(--bs-body-color);
-}
-
-.vp-sight-note > i {
-    margin-top: 2px;
-    color: var(--primary);
-    font-size: 0.72rem;
-}
-
-/* ------------------------------------------------------------------
  * The list
  * ------------------------------------------------------------------ */
 
-.vp-sight-badge {
-    display: inline-block;
-    padding: 1px 7px;
-    border: 1px solid;
-    border-radius: 999px;
-    font-size: 0.66rem;
+/* A row's type, in the chart's colours. */
+.vp-sight-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: var(--vp-sight-yes-ink);
+    font-size: .8rem;
     font-weight: 600;
     white-space: nowrap;
 }
 
-/*
- * The three kinds, in the page's own vocabulary for them rather than in
- * three colours picked here. This badge used to take `--vp-sight-org-1`
- * for a sighting — a categorical slot, so the colour of a sighting
- * depended on which organisation happened to rank first — the verdict
- * palette's benign green for a false positive, and the border grey for
- * an expiration. The chart moved to MISP's own red and orange and left
- * this table behind, which is how a false positive came to be green in
- * one card and red in the next.
- *
- * The contradiction still gets a tint where the agreement does not: a
- * table of forty-seven agreements with one disagreement in it reads as
- * forty-seven agreements otherwise.
- */
-.vp-sight-badge-yes {
-    border-color: color-mix(in srgb, var(--vp-sight-yes) 55%,
-        transparent);
-    color: var(--vp-sight-yes-ink);
-}
-
-.vp-sight-badge-no {
-    border-color: color-mix(in srgb, var(--vp-sight-fp) 55%, transparent);
-    background: color-mix(in srgb, var(--vp-sight-fp) 12%, transparent);
+.vp-sight-kind.is-fp {
     color: var(--vp-sight-fp-ink);
 }
 
-.vp-sight-badge-exp {
-    border-color: color-mix(in srgb, var(--vp-sight-exp) 55%, transparent);
-    background: color-mix(in srgb, var(--vp-sight-exp) 12%, transparent);
+.vp-sight-kind.is-expiration {
     color: var(--vp-sight-exp-ink);
 }
 
-.vp-sight-against {
-    font-size: 0.74rem;
-    color: var(--bs-body-color);
+/* A contradiction is tinted, so one stands out among many sightings. */
+.vp-sight-table tbody tr[data-vp-sight-type="1"] > td,
+.vp-sight-table tbody tr[data-vp-sight-type="2"] > td {
+    background: color-mix(in srgb, var(--vp-sight-fp) 5%, transparent);
 }
 
-.vp-sight-against-type {
-    margin-left: 5px;
-    padding: 0 5px;
-    border-radius: 3px;
-    background: var(--bs-tertiary-bg);
-    font-family: var(--bs-font-monospace);
-    font-size: 0.66rem;
+.vp-sight-day {
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-sight-time {
+    margin-left: .3rem;
     color: var(--bs-secondary-color);
+    font-size: .78rem;
+    font-variant-numeric: tabular-nums;
 }
 
-/*
- * The two ways out of this table: the organisation that filed a report,
- * and the event holding the occurrence it was filed against.
- *
- * Underlined on hover only. Two of five columns permanently underlined
- * turns a ten-row table into a page of links, and the columns either
- * side of them are not going anywhere.
- */
-.vp-sight-link {
-    color: var(--bs-link-color);
-    text-decoration: none;
+.vp-sight-source {
+    color: var(--bs-secondary-color);
+    font-size: .82rem;
 }
 
-.vp-sight-link:hover,
-.vp-sight-link:focus-visible {
-    text-decoration: underline;
+.vp-sight-against {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
 }
 
-/*
- * `.vp-sight-against` sets the colour of the text, which is a statement
- * about the column and not about whether it leads anywhere. Inside a
- * link the link decides.
- */
-.vp-sight-link .vp-sight-against {
-    color: inherit;
+.vp-seg-btn > .vp-sight-dot {
+    margin-right: .3rem;
 }
 
 .vp-sight-foot {
@@ -4527,13 +4393,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 .vp-sight-foot strong {
     font-variant-numeric: tabular-nums;
     color: var(--bs-body-color);
-}
-
-.vp-sight-legend-note {
-    margin: 6px 0 0;
-    font-size: 0.68rem;
-    line-height: 1.4;
-    color: var(--bs-secondary-color);
 }
 
 /* ==================================================================
