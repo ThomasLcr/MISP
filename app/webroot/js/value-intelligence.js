@@ -980,14 +980,13 @@
      * @param {number} sign 1 ascending, -1 descending
      */
     /*
-     * The three containers on this page that own a sortable table. The
+     * The two containers on this page that own a sortable table. The
      * occurrence list is faceted and paginated, the sightings list is
-     * driven by the chart's brush, and the standing ledger is neither,
-     * but all three cycle their headings the same way — so every lookup
-     * that has to find a heading's own container knows all three.
+     * driven by the chart's brush, but both cycle their headings the
+     * same way — so every lookup that has to find a heading's own
+     * container knows both.
      */
-    var SORT_LIST_SELECTOR =
-        '[data-vp-list], [data-vp-sight-list], [data-vp-a-ledger]';
+    var SORT_LIST_SELECTOR = '[data-vp-list], [data-vp-sight-list]';
 
     function sortByColumn(list, filtered, column, sign) {
         var key = 'vpSort' + column.replace(
@@ -1018,33 +1017,6 @@
     }
 
     /**
-     * Reorder the standing panel's ledger.
-     *
-     * No facets and no pages — the panel is bounded by the number of
-     * organisations on the instance — so this is `sortByColumn` and
-     * nothing else. Its rows are `display: contents` wrappers, so
-     * moving one moves the five cells it owns and the grid re-flows
-     * them; the header cells are never moved, and `appendChild` puts
-     * every row after them.
-     *
-     * @param {Element} list A [data-vp-a-ledger]
-     */
-    function sortLedger(list) {
-        var rows = Array.prototype.slice.call(
-            list.querySelectorAll('.vpa-row')
-        );
-        if (rows.length < 2) {
-            return;
-        }
-        sortByColumn(
-            list,
-            rows,
-            list.dataset.vpSortedCol || 'default',
-            list.dataset.vpSortedDir === 'desc' ? -1 : 1
-        );
-    }
-
-    /**
      * Cycle one column heading: ascending, descending, then back to the
      * order the server sent.
      *
@@ -1072,14 +1044,6 @@
             delete list.dataset.vpSortedDir;
         }
         markSortedColumn(list);
-        /*
-         * The standing ledger has neither facets nor pages, so there is
-         * nothing to refresh around the reorder.
-         */
-        if (list.hasAttribute('data-vp-a-ledger')) {
-            sortLedger(list);
-            return;
-        }
         /*
          * The sightings list is not a faceted list: it pages off `load
          * the rest` rather than a page control, and its rows are chosen
@@ -1128,8 +1092,6 @@
         ).filter(function (button) {
             return button.closest(SORT_LIST_SELECTOR) === list;
         }).forEach(function (button) {
-            // A `th` in the two tables; in the ledger, the grid's own
-            // header cell, which has no table row to hang it on.
             var cell = button.closest('th') || button.parentElement;
             if (!cell) {
                 return;
@@ -2152,21 +2114,48 @@
     }
 
     /**
-     * The Analyst data card's filter, as the event Assessment card's.
-     * A root whose replies match stays.
+     * The analyst data cards' filter (the Overview's preview and the
+     * Collaboration tab's thread), as the event Assessment card's: the
+     * search box and, where there is one, the kind switch. An entry is a
+     * top-level item with its replies.
      *
-     * @param {Element} input
+     * The thread can also be narrowed to one organisation
+     * (`data-vp-ad-org`, set by the standing card's notes badge). Then an
+     * entry stays when it, or one of its replies, is of the picked kind
+     * and by that organisation; those are marked, and the replies holding
+     * one are opened.
+     *
+     * @param {Element} card A [data-vp-analyst-preview] or [data-vp-analyst-collab]
      */
-    function filterAnalystPreview(input) {
-        var card = input.closest('[data-vp-analyst-preview]');
-        if (!card) {
-            return;
-        }
-        var needle = input.value.trim().toLowerCase();
+    function filterAnalystCard(card) {
+        var input = card.querySelector('[data-vp-analyst-filter]');
+        var needle = input ? input.value.trim().toLowerCase() : '';
+        var kindButton = card.querySelector('[data-vp-ad-kind].active');
+        var kind = kindButton ? kindButton.dataset.vpAdKind : 'all';
+        var org = card.dataset.vpAdOrg || '';
         var shown = 0;
+        card.querySelectorAll('.vp-ad-match').forEach(function (el) {
+            el.classList.remove('vp-ad-match');
+        });
         card.querySelectorAll('[data-ad-entry]').forEach(function (el) {
-            var hit = needle === ''
-                || el.textContent.toLowerCase().indexOf(needle) !== -1;
+            var hit = needle === '' || el.textContent.toLowerCase().indexOf(needle) !== -1;
+            if (org === '') {
+                hit = hit && (kind === 'all' || el.classList.contains('adr-kind-' + kind));
+            } else {
+                var matches = [el].concat(Array.prototype.slice.call(
+                    el.querySelectorAll('.adr-entry')
+                )).filter(function (entry) {
+                    return entry.dataset.adOrg === org
+                        && (kind === 'all' || entry.classList.contains('adr-kind-' + kind));
+                });
+                hit = hit && matches.length > 0;
+                if (hit) {
+                    matches.forEach(function (entry) {
+                        entry.classList.add('vp-ad-match');
+                        openRepliesAbove(entry, el);
+                    });
+                }
+            }
             el.classList.toggle('d-none', !hit);
             shown += hit ? 1 : 0;
         });
@@ -2174,6 +2163,159 @@
         if (none) {
             none.classList.toggle('d-none', shown > 0);
         }
+    }
+
+    /**
+     * Unfolds every reply list between a matching entry and its top-level
+     * entry, as the thread's own "N replies" button does.
+     *
+     * @param {Element} entry
+     * @param {Element} top
+     */
+    function openRepliesAbove(entry, top) {
+        var list = entry.parentElement ? entry.parentElement.closest('.adr-replies') : null;
+        while (list && top.contains(list)) {
+            if (list.hidden) {
+                list.hidden = false;
+                var button = list.previousElementSibling;
+                if (button && button.hasAttribute('data-adr-replies')) {
+                    button.setAttribute('aria-expanded', 'true');
+                    var label = button.querySelector('.adr-replies-label');
+                    if (label) {
+                        label.textContent = button.dataset.adrLabelOpen;
+                    }
+                }
+            }
+            list = list.parentElement ? list.parentElement.closest('.adr-replies') : null;
+        }
+    }
+
+    // An organisation picked before Notes and opinions had loaded.
+    var pendingOrgNotes = null;
+
+    /**
+     * Narrows Notes and opinions to one organisation's notes and scrolls
+     * to it: the standing card's notes badge.
+     *
+     * @param {string} org
+     */
+    function showOrgNotes(org) {
+        var card = document.querySelector('[data-vp-analyst-collab]');
+        if (!card || !card.querySelector('[data-vp-ad-orgfilter]')) {
+            pendingOrgNotes = card ? null : org;
+            return;
+        }
+        pendingOrgNotes = null;
+        card.dataset.vpAdOrg = org;
+        var input = card.querySelector('[data-vp-analyst-filter]');
+        if (input) {
+            input.value = '';
+        }
+        setAnalystKind(card, 'note');
+        showOrgFilter(card);
+        filterAnalystCard(card);
+        var still = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        card.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    }
+
+    /**
+     * @param {Element} card A [data-vp-analyst-collab]
+     */
+    function clearOrgNotes(card) {
+        delete card.dataset.vpAdOrg;
+        setAnalystKind(card, 'all');
+        showOrgFilter(card);
+        filterAnalystCard(card);
+    }
+
+    /**
+     * The strip under the thread's header naming the organisation.
+     *
+     * @param {Element} card A [data-vp-analyst-collab]
+     */
+    function showOrgFilter(card) {
+        var strip = card.querySelector('[data-vp-ad-orgfilter]');
+        if (!strip) {
+            return;
+        }
+        var org = card.dataset.vpAdOrg || '';
+        var label = strip.querySelector('[data-vp-ad-orgfilter-label]');
+        label.textContent = label.dataset.template.replace('%s', org);
+        strip.classList.toggle('d-none', org === '');
+    }
+
+    /**
+     * @param {Element} card A [data-vp-analyst-collab]
+     * @param {string} kind all, note or opinion
+     */
+    function setAnalystKind(card, kind) {
+        card.querySelectorAll('[data-vp-ad-kind]').forEach(function (b) {
+            var on = b.dataset.vpAdKind === kind;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    /**
+     * The search line of a Collaboration rail card (comments, reports):
+     * keeps the [data-vp-entry] whose text holds the needle.
+     *
+     * @param {Element} input A [data-vp-entries-filter]
+     */
+    function filterEntries(input) {
+        var card = input.closest('[data-vp-entries]');
+        if (!card) {
+            return;
+        }
+        var needle = input.value.trim().toLowerCase();
+        // A search reads every entry; without one, the fold is back.
+        var unfolded = needle !== '' || card.dataset.vpEntriesOpen === '1';
+        var shown = 0;
+        card.querySelectorAll('[data-vp-entry]').forEach(function (el) {
+            var hit = needle === '' || el.textContent.toLowerCase().indexOf(needle) !== -1;
+            el.classList.toggle('d-none', !hit || (!unfolded && el.hasAttribute('data-vp-entry-fold')));
+            shown += hit ? 1 : 0;
+        });
+        var more = card.querySelector('[data-vp-entries-more]');
+        if (more) {
+            more.classList.toggle('d-none', unfolded);
+        }
+        var none = card.querySelector('[data-vp-entries-none]');
+        if (none) {
+            none.classList.toggle('d-none', shown > 0);
+        }
+    }
+
+    /**
+     * @param {Element} button A [data-vp-entries-more]
+     */
+    function unfoldEntries(button) {
+        var card = button.closest('[data-vp-entries]');
+        if (!card) {
+            return;
+        }
+        card.dataset.vpEntriesOpen = '1';
+        card.querySelectorAll('[data-vp-entry-fold]').forEach(function (el) {
+            el.classList.remove('d-none');
+        });
+        button.classList.add('d-none');
+    }
+
+    /**
+     * @param {Element} button A [data-vp-ad-kind]
+     */
+    function pickAnalystKind(button) {
+        var card = button.closest('[data-vp-analyst-collab]');
+        if (!card) {
+            return;
+        }
+        card.querySelectorAll('[data-vp-ad-kind]').forEach(function (b) {
+            var on = b === button;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        filterAnalystCard(card);
     }
 
     /**
@@ -6549,139 +6691,9 @@
     }
 
     /**
-     * Analyst data tab
-     * ------------------------------------------------------------
-     * Four behaviours, all client-side against markup the two
-     * endpoints already sent: the order of the thread, which kinds it
-     * shows, whether an item's replies are open, and a strip marker
-     * lighting up the table row it belongs to.
-     *
-     * A reply is never sorted or filtered on its own. The unit is the
-     * top-level item and everything written under it — `.vpa-item` —
-     * because a reply reordered away from what it replies to is no
-     * longer a reply, and a thread that hides the note but keeps the
-     * opinion written on it is showing an answer to a question it has
-     * taken off the page.
-     */
-
-    // Per-panel state, keyed by the element so a panel re-fetched into
-    // the tab starts from its markup rather than from what the last
-    // one was showing.
-    var analystState = new WeakMap();
-
-    /**
-     * @param {Element} panel
-     * @return {Object} The panel's sort and kind, defaulted
-     */
-    function analystStateOf(panel) {
-        if (!analystState.has(panel)) {
-            analystState.set(panel, {sort: 'newest', kind: 'all'});
-        }
-        return analystState.get(panel);
-    }
-
-    /**
-     * Reorder and re-show the thread from the panel's current state.
-     *
-     * @param {Element} panel
-     */
-    function refreshAnalyst(panel) {
-        var thread = panel.querySelector('.vpa-thread');
-        if (!thread) {
-            return;
-        }
-        var state = analystStateOf(panel);
-        var items = Array.prototype.slice.call(
-            thread.querySelectorAll('[data-vp-a-item]')
-        );
-
-        items.sort(function (a, b) {
-            if (state.sort === 'org') {
-                var byOrg = a.dataset.vpAOrg.localeCompare(b.dataset.vpAOrg);
-                if (byOrg !== 0) {
-                    return byOrg;
-                }
-            }
-            var dates = a.dataset.vpADate.localeCompare(b.dataset.vpADate);
-            if (dates !== 0) {
-                // Oldest first only when asked; by organisation keeps
-                // each organisation's own thread in the order it was
-                // written, newest at the top like everything else.
-                return state.sort === 'oldest' ? dates : -dates;
-            }
-            // Same day: the order the endpoint sent, which is the order
-            // the rows came back in.
-            return parseInt(a.dataset.vpAOrder, 10)
-                - parseInt(b.dataset.vpAOrder, 10);
-        });
-
-        var shown = 0;
-        items.forEach(function (item) {
-            thread.appendChild(item);
-            var on = state.kind === 'all'
-                || item.dataset.vpAKind === state.kind;
-            item.classList.toggle('d-none', !on);
-            if (on) {
-                shown++;
-            }
-        });
-
-        var empty = panel.querySelector('[data-vp-a-empty]');
-        if (empty) {
-            empty.classList.toggle('d-none', shown > 0);
-        }
-
-        panel.querySelectorAll('[data-vp-a-sort]').forEach(function (button) {
-            var active = button.dataset.vpASort === state.sort;
-            button.classList.toggle('active', active);
-            button.setAttribute('aria-pressed', active ? 'true' : 'false');
-        });
-        panel
-            .querySelectorAll('[data-vp-a-kind-filter]')
-            .forEach(function (button) {
-                var active = button.dataset.vpAKindFilter === state.kind;
-                button.classList.toggle('active', active);
-                button.setAttribute('aria-pressed', active ? 'true' : 'false');
-            });
-    }
-
-    /**
-     * Open or close one item's replies.
-     *
-     * @param {Element} button
-     */
-    function toggleAnalystReplies(button) {
-        /*
-         * The replies block is the next sibling of the .vp-analyst the
-         * button sits in — never a descendant of it. Walking down from
-         * the item would find the replies of a nested item first, and
-         * open somebody else's sub-thread.
-         */
-        var claim = button.closest('.vp-analyst');
-        var replies = claim ? claim.nextElementSibling : null;
-        if (!replies || !replies.classList.contains('vpa-replies')) {
-            return;
-        }
-        var open = replies.classList.toggle('d-none');
-        button.setAttribute('aria-expanded', open ? 'false' : 'true');
-        var caret = button.querySelector('i');
-        if (caret) {
-            caret.classList.toggle('fa-caret-down', !open);
-            caret.classList.toggle('fa-caret-right', open);
-        }
-    }
-
-    /**
-    /**
      * @param {Element} root
      */
     function initAnalyst(root) {
-        var panels = root.querySelectorAll
-            ? root.querySelectorAll('[data-vp-analyst-thread]')
-            : [];
-        panels.forEach(function (panel) {
-            refreshAnalyst(panel);
-        });
         initAnalystBadge(root);
     }
 
@@ -6706,32 +6718,24 @@
      * @return {boolean} Whether the click belonged to this tab
      */
     function onAnalystClick(event) {
-        var sort = event.target.closest('[data-vp-a-sort]');
-        if (sort) {
-            var sortPanel = sort.closest('[data-vp-analyst-thread]');
-            if (sortPanel) {
-                analystStateOf(sortPanel).sort = sort.dataset.vpASort;
-                refreshAnalyst(sortPanel);
-            }
-            return true;
-        }
-
-        var kind = event.target.closest('[data-vp-a-kind-filter]');
+        var kind = event.target.closest('[data-vp-ad-kind]');
         if (kind) {
-            var kindPanel = kind.closest('[data-vp-analyst-thread]');
-            if (kindPanel) {
-                analystStateOf(kindPanel).kind = kind.dataset.vpAKindFilter;
-                refreshAnalyst(kindPanel);
+            pickAnalystKind(kind);
+            return true;
+        }
+        var notes = event.target.closest('[data-vp-ad-org-notes]');
+        if (notes) {
+            showOrgNotes(notes.dataset.vpAdOrgNotes);
+            return true;
+        }
+        var clear = event.target.closest('[data-vp-ad-orgfilter-clear]');
+        if (clear) {
+            var card = clear.closest('[data-vp-analyst-collab]');
+            if (card) {
+                clearOrgNotes(card);
             }
             return true;
         }
-
-        var replies = event.target.closest('[data-vp-a-replies]');
-        if (replies) {
-            toggleAnalystReplies(replies);
-            return true;
-        }
-
         return false;
     }
 
@@ -10174,11 +10178,6 @@
             }
         });
 
-        // The standing panel used to pair a strip marker with the
-        // table rows it stood for. Its ledger fuses the two — the
-        // marker and the row are one object now — so the hover lives
-        // in `.vpa-row:hover` and needs no script.
-
         document.addEventListener('change', function (event) {
             if (event.target.id === 'vp-occ-deleted-toggle') {
                 refreshOccurrences();
@@ -10278,6 +10277,14 @@
             }
         });
 
+        document.addEventListener('click', function (event) {
+            var more = event.target.closest
+                ? event.target.closest('[data-vp-entries-more]') : null;
+            if (more) {
+                unfoldEntries(more);
+            }
+        });
+
         document.addEventListener('input', function (event) {
             if (!event.target.matches) {
                 return;
@@ -10291,7 +10298,16 @@
                 return;
             }
             if (event.target.matches('[data-vp-analyst-filter]')) {
-                filterAnalystPreview(event.target);
+                var analystCard = event.target.closest(
+                    '[data-vp-analyst-preview], [data-vp-analyst-collab]'
+                );
+                if (analystCard) {
+                    filterAnalystCard(analystCard);
+                }
+                return;
+            }
+            if (event.target.matches('[data-vp-entries-filter]')) {
+                filterEntries(event.target);
                 return;
             }
             if (event.target.matches('[data-vp-e-filter]')) {
@@ -10322,6 +10338,11 @@
             initEnrichmentTyping(event.target);
             initEnrichPanel(event.target);
             initAnalyst(event.target);
+            if (pendingOrgNotes !== null
+                && event.target.querySelector
+                && event.target.querySelector('[data-vp-analyst-collab]')) {
+                showOrgNotes(pendingOrgNotes);
+            }
             initTimeline(event.target);
             initHistory(event.target);
             initRelationSummary(event.target);

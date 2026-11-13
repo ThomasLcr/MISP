@@ -24,6 +24,7 @@ App::uses('ValueContestedTool', 'Tools/ValueIntelligence');
 App::uses('ValueFactsTool', 'Tools/ValueIntelligence');
 App::uses('ValueContextTool', 'Tools/ValueIntelligence');
 App::uses('EventContextTool', 'Tools/EventOverview');
+App::uses('EventReportDigestTool', 'Tools');
 App::uses('ModuleLocality', 'Tools');
 App::uses('ModuleRole', 'Tools');
 App::uses('WarninglistCategory', 'Tools');
@@ -727,15 +728,6 @@ class ValueIntelligence extends AppModel
      * thousands. Phase 25's D2 pattern.
      */
     const ANALYST_REPORT_CAP = 50;
-
-    /**
-     * Characters of a report's body carried for its extract.
-     *
-     * `event_reports.content` is `mediumtext` and has no length limit
-     * in practice, so a list of twenty reports could be a megabyte of
-     * markdown fetched to render four lines of each.
-     */
-    const ANALYST_REPORT_HEAD = 600;
 
     /**
      * Distinct comment sentences the comment table draws before it
@@ -8587,6 +8579,7 @@ class ValueIntelligence extends AppModel
                     'org' => isset($row['Orgc']['name'])
                         ? $row['Orgc']['name']
                         : __('Unknown organisation'),
+                    'org_id' => (int)$event['orgc_id'],
                     'published' => !empty($event['published']),
                     'first_publication' => (int)$event['first_publication'],
                     'publish_timestamp' => (int)$event['publish_timestamp'],
@@ -11135,6 +11128,10 @@ class ValueIntelligence extends AppModel
             array_keys($this->model('Value')->proposalsFor($user, $value))
         );
         $scope['reports'] = $this->historyReportIds($user, $context);
+        // The History tab's filter bar (AuditLogsController::valueHistory).
+        if (!empty($options['conditions'])) {
+            $scope['filter'] = $options['conditions'];
+        }
 
         $counts = $this->auditCountsFor($scope);
         $rows = $this->auditRowsFor($scope, array(
@@ -11347,6 +11344,8 @@ class ValueIntelligence extends AppModel
                     'org' => $event === null
                         ? __('Unknown organisation')
                         : $event['org'],
+                    'org_id' => $event === null ? null : $event['org_id'],
+                    'type' => $occurrence['type'] ?? null,
                     'deleted' => !empty($occurrence['deleted']),
                     'count' => 0,
                     'total' => 0,
@@ -12287,12 +12286,16 @@ class ValueIntelligence extends AppModel
                 continue;
             }
             foreach (array_chunk($ids, self::AUDIT_ID_CHUNK) as $chunk) {
+                $conditions = array(
+                    'AuditLog.model' => $model,
+                    'AuditLog.model_id' => $chunk,
+                );
+                if (!empty($scope['filter'])) {
+                    $conditions['AND'][] = $scope['filter'];
+                }
                 $queries[] = array(
                     'model' => $model,
-                    'conditions' => array(
-                        'AuditLog.model' => $model,
-                        'AuditLog.model_id' => $chunk,
-                    ),
+                    'conditions' => $conditions,
                 );
             }
         }
@@ -12424,6 +12427,27 @@ class ValueIntelligence extends AppModel
     }
 
     /**
+     * The Collaboration tab's Proposals card: the pending and closed
+     * shadow attributes about this value, newest first. One read, without
+     * the thread's five-anchor union.
+     *
+     * @param array $user
+     * @param string $value
+     * @param array $options Reserved
+     * @return array
+     */
+    public function forAnalystProposals(array $user, $value,
+        array $options = array()
+    ) {
+        return array(
+            'value' => $value,
+            'proposals' => self::analystNewestFirst(
+                $this->analystProposalItems($user, $value)
+            ),
+        );
+    }
+
+    /**
      * The argument, in the order it happened.
      *
      * @param array $user
@@ -12435,6 +12459,15 @@ class ValueIntelligence extends AppModel
         array $options = array()
     ) {
         $context = $this->analystContext($user, $value, $options);
+        // Proposals have their own card (forAnalystProposals): they are
+        // edits offered to an event, not analyst data.
+        $context['thread'] = array_values(array_filter(
+            $context['thread'],
+            function ($item) {
+                return $item['kind'] !== 'proposal';
+            }
+        ));
+        $context['counts'] = $this->analystCounts($context['thread']);
         return array(
             'value' => $value,
             'analyst' => $context,
@@ -12480,13 +12513,8 @@ class ValueIntelligence extends AppModel
      * query `analystReportCount` runs, over the event ids the anchor
      * read already returned.
      *
-     * **And the standing, since phase 35, which is free.** The card
-     * draws the tab's tug-bar over it — the one object on the
-     * Collaboration tab that is a shape rather than a list, and the
-     * one thing on this card that is not capped at four items. A value
-     * with two notes and six opinions can fill the preview with notes
-     * and show the reader no opinion at all; the bar is over every
-     * opinion either way.
+     * And the standing, which is free: the card states the opinions'
+     * average off it.
      *
      * @param array $user
      * @param string $value
@@ -12507,16 +12535,8 @@ class ValueIntelligence extends AppModel
          * items and the union can hold hundreds; carrying the rest so
          * the template can ignore them is the Overview paying the
          * tab's memory for a panel that shows a handful.
-         *
-         * **The ledger is kept, and phase 35 is what gave it a
-         * reader.** It was built and then discarded here, which the
-         * note this replaces called the cheaper mistake; the card now
-         * draws the tug-bar off it. It is one row per opinion that
-         * rates the value — four on the flagship, one on `127.0.0.1`,
-         * none at all on four of the five values `31-query-count.php`
-         * measures — so keeping it costs no query and no meaningful
-         * memory, and it is the *same* array the tab reads rather
-         * than a second count of the same opinions.
+         * The standing is kept: one row per opinion, no query, and the
+         * same array the tab reads.
          */
         unset($context['thread'], $context['events']);
         return array(
@@ -12639,7 +12659,7 @@ class ValueIntelligence extends AppModel
             $eventIds[$group['event_id']] = true;
         }
         $orgs = $this->organisationNames(array(), $orgIds);
-        $events = $this->commentEventNames($user, array_keys($eventIds));
+        $events = $this->eventPeeks($user, array_keys($eventIds));
         $rows = array();
         foreach ($groups as $group) {
             $eventId = $group['event_id'];
@@ -12697,20 +12717,15 @@ class ValueIntelligence extends AppModel
     }
 
     /**
-     * The events the comment table links to, by id.
-     *
-     * `fetchSimpleEvents` rather than the ids alone, for the two things
-     * a link needs that an aggregate cannot carry: the event's `info`,
-     * so the chip names what it opens, and a second pass of
-     * `createEventConditions` over ids that came from an ACL'd read.
-     * One call for the whole table — §14.4's commitment is never one
-     * call per row.
+     * The events the comment and report cards point at, by id, in the
+     * shape `Attributes/event_peek` reads: one read for the whole card,
+     * through `createEventConditions` again.
      *
      * @param array $user
      * @param array $ids
-     * @return array event id => ['id' => int, 'info' => string]
+     * @return array event id => event fields, Orgc and SharingGroup
      */
-    private function commentEventNames(array $user, array $ids)
+    private function eventPeeks(array $user, array $ids)
     {
         if (empty($ids)) {
             return array();
@@ -12720,12 +12735,36 @@ class ValueIntelligence extends AppModel
             array('conditions' => array('Event.id' => $ids)),
             true
         );
+        $names = $this->sharingGroupNames($user, array(), array_map(
+            function ($event) {
+                return $event['Event']['distribution'];
+            },
+            $events
+        ));
         $out = array();
         foreach ($events as $event) {
-            $out[(int)$event['Event']['id']] = array(
-                'id' => (int)$event['Event']['id'],
-                'info' => isset($event['Event']['info'])
-                    ? $event['Event']['info']
+            $row = $event['Event'];
+            $group = (int)$row['sharing_group_id'];
+            $out[(int)$row['id']] = array(
+                'id' => (int)$row['id'],
+                'info' => $row['info'],
+                'date' => $row['date'],
+                'distribution' => (int)$row['distribution'],
+                'sharing_group_id' => $group,
+                'threat_level_id' => (int)$row['threat_level_id'],
+                'analysis' => (int)$row['analysis'],
+                'attribute_count' => (int)$row['attribute_count'],
+                'timestamp' => (int)$row['timestamp'],
+                'published' => !empty($row['published']),
+                'publish_timestamp' => (int)$row['publish_timestamp'],
+                'Orgc' => array(
+                    'id' => (int)$row['orgc_id'],
+                    'name' => isset($event['Orgc']['name'])
+                        ? $event['Orgc']['name']
+                        : '',
+                ),
+                'SharingGroup' => isset($names[$group])
+                    ? array('id' => $group, 'name' => $names[$group])
                     : null,
             );
         }
@@ -12918,15 +12957,11 @@ class ValueIntelligence extends AppModel
                     ? $row['SharingGroup']['name']
                     : null,
                 'withdrawn' => $withdrawn,
-                /*
-                 * The head of the report rather than the report. A
-                 * report has no length limit and this panel shows a
-                 * list; carrying every byte of every one of them to
-                 * render four lines of each is the cost that would make
-                 * the panel worth not opening.
-                 */
-                'head' => mb_substr($content, 0, self::ANALYST_REPORT_HEAD),
-                'length' => mb_strlen($content),
+                'timestamp' => (int)$report['timestamp'],
+                // What the card's event reference shows on hover.
+                'event_peek' => $event,
+                // Excerpt, words and references, as the reports index.
+                'digest' => EventReportDigestTool::digest($content),
             );
         }
         $out['total'] = count($reports);
@@ -12959,9 +12994,12 @@ class ValueIntelligence extends AppModel
      * primary-key lookup and means no event's level can be read off a
      * row this viewer should not have.
      *
+     * The same read carries what the card's event peek shows.
+     *
      * @param array $user
      * @param array $rows fetchReports-shaped
-     * @return array event id => distribution, sharing_group_id
+     * @return array event id => `eventPeeks` row (distribution,
+     *  sharing_group_id and the peek's fields)
      */
     private function reportEventAudiences(array $user, array $rows)
     {
@@ -12969,22 +13007,7 @@ class ValueIntelligence extends AppModel
         foreach ($rows as $row) {
             $ids[(int)$row['EventReport']['event_id']] = true;
         }
-        if (empty($ids)) {
-            return array();
-        }
-        $events = $this->model('Event')->fetchSimpleEvents(
-            $user,
-            array('conditions' => array('Event.id' => array_keys($ids)))
-        );
-        $out = array();
-        foreach ($events as $event) {
-            $out[(int)$event['Event']['id']] = array(
-                'distribution' => (int)$event['Event']['distribution'],
-                'sharing_group_id' =>
-                    (int)$event['Event']['sharing_group_id'],
-            );
-        }
-        return $out;
+        return $this->eventPeeks($user, array_keys($ids));
     }
 
     /**
@@ -13655,8 +13678,7 @@ class ValueIntelligence extends AppModel
      * campaign's own default value carries four opinions and all four
      * are ADMIN's — 100, 100, 80, then 10. Rolled up to one lane that
      * value would draw a single disputing organisation over a set that
-     * is three-quarters agreement, and the tug-bar's clause would read
-     * *every organisation disputes*. So every opinion gets its lane,
+     * is three-quarters agreement. So every opinion gets its lane,
      * an organisation's lanes sit together, and the sub-line's *N
      * opinions from M organisations* is what tells the reader the two
      * counts differ.

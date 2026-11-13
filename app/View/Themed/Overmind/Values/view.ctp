@@ -18,6 +18,8 @@ echo $this->element('genericElements/assetLoader', array(
     'css' => array(
         'value-palette', 'value-widgets', 'misp-brush', 'misp-matrix',
         'org-tile', 'tile-drawer', 'value-intelligence', 'value-new-event',
+        // The Collaboration tab's reports are the reports index's card tiles.
+        'event-reports-index',
         // The Overview's occurrence card is the global attribute table.
         'attributes-index',
         // Its tags card is the event overview's Context card.
@@ -374,10 +376,10 @@ $panelChrome = array(
     ),
     'viewAnalystStanding' => array(
         $await(__('Where the organisations stand'),
-            'fas fa-arrows-left-right-to-line', 'var(--analystData)', 6),
+            'fas fa-arrows-left-right-to-line', 'var(--analystData)', 2),
     ),
     'viewAnalystThread' => array(
-        $await(__('Notes, opinions and proposals'), $icoNote,
+        $await(__('Notes and opinions'), $icoNote,
             'var(--analystData)', 6),
     ),
     /*
@@ -387,8 +389,8 @@ $panelChrome = array(
      * still loading.
      */
     'viewAnalystReports' => array(
-        $await(__('Event reports'), 'fas fa-file-lines',
-            'var(--analystData)', 4),
+        $await(__('Event reports'), 'misp-icon misp-icon-report misp-simple',
+            'var(--report)', 4),
     ),
     'viewAnalystComments' => array(
         $await(__('Attribute comments'), 'fas fa-comment-dots',
@@ -396,12 +398,6 @@ $panelChrome = array(
     ),
     'viewTimeline' => array(
         $await(__('Timeline'), 'fas fa-clock', 'var(--bs-info)', 8),
-    ),
-    'viewHistory' => array(
-        $await(__('Filters'), 'fas fa-filter',
-            'var(--bs-secondary-color)', 5, array('col' => 3)),
-        $await(__('History'), 'fas fa-history',
-            'var(--bs-secondary-color)', 8, array('col' => 9)),
     ),
 );
 
@@ -831,69 +827,22 @@ $tabRegistry = array(
             'color' => 'var(--analystData)',
         ),
         /*
-         * One full-width slot, and the standing panel lays out its own
-         * internal row: the histogram at col-lg-4 beside the
-         * per-organisation table at col-lg-8. Not this page's 9/3,
-         * because the position strip spans the whole panel above both
-         * of them — it is the tab's opening claim and a rail would cut
-         * a hundred-point scale down to a quarter of the page.
+         * Where the organisations stand across the top, as a one-line
+         * summary; the proposals and the thread in the main column; what
+         * was written around the value (comments, event reports) in the
+         * rail.
          */
-        'left' => array(
+        'top' => array(
             $panel('viewAnalystStanding'),
-            $panel('viewAnalystThread'),
-            /*
-             * **The tab's third row is two panels wide on a large
-             * screen**, and the pair is the tab's second half: what was
-             * written *around* this value, where the two above are the
-             * argument *about* it.
-             *
-             * Side by side because they are the two shortest things on
-             * the tab and they are short in opposite directions — a
-             * value with eleven comments has no report, and one with
-             * eight reports has three comments. Stacked, a reader paid
-             * for both; in a row the tab is as tall as the taller of
-             * them rather than as tall as the sum, which is a saving on
-             * every value and never a cost.
-             *
-             * **`col-xl-6` rather than the group's `col-lg-6` default,
-             * and the breakpoint is measured rather than picked.** A
-             * report row is a title, an extract and a meta line, and
-             * halving its width wraps all three: the reports panel is
-             * 660px at full width and **887px** in a 472px column. So
-             * at `lg`'s 992px the row costs 887 against the 834 the two
-             * stacked, and the arrangement is worse than what it
-             * replaces. The crossover sits near 1,100px — at 1,200 the
-             * row is 689 against 834 — so the split starts at `xl`,
-             * where it is a saving on every value.
-             *
-             * Below it they stack exactly as they did. Two panels
-             * beside each other is a claim about horizontal room and a
-             * narrow window has none.
-             */
-            array('row' => array(
-                /*
-                 * Left of the pair. The three panels before it are
-                 * anchored to uuids and spend a chip per row saying
-                 * which container they are really about; this one is
-                 * the `comment` column of the value's own occurrences,
-                 * so it is the only thing on the tab written *about the
-                 * value* with nothing to qualify. It leads the row for
-                 * that reason.
-                 */
-                $panel('viewAnalystComments') + array('col' => 'col-xl-6'),
-                /*
-                 * The narrative list, added by phase 26 —
-                 * `value-intelligence-coverage.md` §4.5 places event reports
-                 * on this tab, and a report is a document rather than a
-                 * turn in the thread above it. Its own endpoint,
-                 * because it is one `fetchReports` over the value's
-                 * events and should not wait on the thread's
-                 * five-anchor union.
-                 */
-                $panel('viewAnalystReports') + array('col' => 'col-xl-6'),
-            )),
         ),
-        'right' => null,
+        'left' => array(
+            $panel('viewAnalystProposals'),
+            $panel('viewAnalystThread'),
+        ),
+        'right' => array(
+            $panel('viewAnalystComments'),
+            $panel('viewAnalystReports'),
+        ),
     ),
     array(
         'id' => 'timeline',
@@ -927,13 +876,10 @@ $tabRegistry = array(
          * off, so it is 0 for a reason that has nothing to do with the
          * value. A number meaning three things and usually zero is
          * worse than no number.
-         *
-         * One full-width slot, and the panel owns its rail: the facet
-         * control binds checkboxes to rows through the nearest
-         * `data-vp-list` ancestor, so the two cannot be separate cards.
          */
+        // The value's audit trail, drawn as an event's History tab.
         'left' => array(
-            $panel('viewHistory'),
+            array('ajax' => $baseurl . '/audit_logs/valueHistory/' . h($valueB64)),
         ),
         'right' => null,
     ),
@@ -950,6 +896,7 @@ foreach ($tabRegistry as $tab) {
         'icon' => $tab['icon'],
         'count' => $tab['count'] ?? null,
         'badge' => $tab['badge'] ?? null,
+        'top' => $tab['top'] ?? null,
         'right' => $tab['right'] ?? null,
         'left' => $tab['left'],
     );

@@ -1855,6 +1855,15 @@ class ValuesController extends AppController
         );
     }
 
+    public function viewAnalystProposals($b64value = null)
+    {
+        $this->__renderLivePanel(
+            $b64value,
+            'forAnalystProposals',
+            'value_analyst_proposals'
+        );
+    }
+
     public function viewAnalystThread($b64value = null)
     {
         $this->__renderLivePanel(
@@ -1923,14 +1932,9 @@ class ValuesController extends AppController
      * above is about the brush and nothing about reading the database
      * touches it.
      *
-     * **The window is in the path, and it is a filter rather than an
-     * identity.** `viewHistory`'s period is the panel's subject — what
-     * that endpoint returns for one window is a different fragment, top
-     * to bottom. This one returns the same spine over the value's whole
-     * range whatever window it is given; only the chronology's rows
-     * change. It takes the path shape anyway, and `self::period` with
-     * it, because a reader of these two actions should not have to
-     * learn that one page states a window two ways.
+     * **The window is in the path, and it is a filter.** The endpoint
+     * returns the same spine over the value's whole range whatever window
+     * it is given; only the chronology's rows change.
      *
      * Absent or malformed dates mean no window, which is the panel a
      * page load asks for.
@@ -1953,39 +1957,6 @@ class ValuesController extends AppController
                 array('window' => is_array($window) ? $window : null)
             ),
             'value_timeline'
-        );
-    }
-
-    /**
-     * The History tab: the counted rail and the occurrence sections it
-     * narrows, in one panel.
-     *
-     * One endpoint, for the Occurrences tab's reason rather than the
-     * Timeline tab's. The facet control wires its checkboxes to rows by
-     * walking up to the nearest `data-vp-list` region, so the rail and
-     * the rows have to arrive inside one container: split across two
-     * `.ajax-card`s they resolve independently, and a rail whose rows
-     * have not landed yet is a rail wired to nothing.
-     *
-     * The only panel on this page that takes a period, and it takes it
-     * in the path because it is the panel's identity rather than a
-     * filter over it: what the endpoint returns for one window is a
-     * different fragment, and `reloadAjaxTabIndex` re-fetches a
-     * container by URL. Everything else on the tab narrows client-side
-     * over rows this already sent.
-     *
-     * @param string $b64value
-     * @param string $from `Y-m-d`, or the literal `all`
-     * @param string $to `Y-m-d`
-     * @return void
-     */
-    public function viewHistory($b64value = null, $from = null, $to = null)
-    {
-        $this->__renderLivePanel(
-            $b64value,
-            'forHistory',
-            'value_history',
-            array('window' => self::__period($from, $to))
         );
     }
 
@@ -2178,31 +2149,11 @@ class ValuesController extends AppController
         if ($address === null) {
             throw new NotFoundException(__('Invalid base64 encoding.'));
         }
-        if (isset($address['value'])) {
-            return $address['value'];
-        }
-        $found = $this->AttributeValue->findAddressed($address);
-        if ($found === null || !$this->__mayRead($found['id'])) {
+        $value = $this->AttributeValue->readableAddressed($this->Auth->user(), $address);
+        if ($value === null) {
             throw new NotFoundException(__('Invalid value.'));
         }
-        return $found['value'];
-    }
-
-    /**
-     * An id or a sha256 makes the dictionary supply the text, so it is
-     * answered only for a value the reader could have read elsewhere.
-     *
-     * @param int $id
-     * @return bool
-     */
-    private function __mayRead($id)
-    {
-        $user = $this->Auth->user();
-        if (!empty($user['Role']['perm_site_admin'])) {
-            return true;
-        }
-        $this->loadModel('MispAttribute');
-        return !empty($this->MispAttribute->visibleValueIds($user, [$id], 1));
+        return $value;
     }
 
     /**

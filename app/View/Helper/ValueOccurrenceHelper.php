@@ -57,17 +57,12 @@ class ValueOccurrenceHelper extends AppHelper
             'name' => __('Event'),
             'element' => 'custom',
             'class' => 'vp-occ-event',
-            'function' => function ($row) use ($baseurl, $view) {
+            'function' => function ($row) use ($view) {
                 $event = $row['Event'] ?? array();
                 if (empty($event['id'])) {
                     return '';
                 }
-                // The id, then the event icon, whose popover carries the title.
-                return '<span class="vp-occ-event-ref"><a class="vp-occ-event-id" href="'
-                    . h($baseurl . '/events/view/' . (int)$event['id']) . '" title="'
-                    . h($event['info'] ?? '') . '">#' . (int)$event['id'] . '</a>'
-                    . $view->element('Attributes/event_peek', array('event' => $event))
-                    . '</span>';
+                return $view->element('Attributes/event_ref', array('event' => $event));
             },
         ) + $sort('Attribute.event_id');
         $fields[] = array(

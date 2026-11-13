@@ -3,9 +3,7 @@
  * The falsification lines, without the card around them.
  *
  * Extracted so the Assessment tab's aside and the Overview's assessment
- * card draw one set of rows rather than two renderings of one array —
- * the rule `value_analyst_tug.ctp` was extracted under, and the reason
- * the Lifetime card and the clock band cannot disagree.
+ * card draw one set of rows rather than two renderings of one array.
  *
  * The wrapper is the caller's: the aside puts the actions in the same
  * flex column and the card does not.

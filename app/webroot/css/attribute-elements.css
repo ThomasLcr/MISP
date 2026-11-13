@@ -232,6 +232,26 @@ span.feed-hit { cursor: default; }
     .om-analyst-none:focus-visible { opacity: 1; }
 }
 
+/* An event named by its id (Attributes/event_ref): the id as the indexes' ID
+   column, then the event peek. */
+.ev-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    vertical-align: middle;
+}
+.ev-ref-id {
+    font-family: var(--bs-font-monospace);
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+.ev-ref-id:hover {
+    color: var(--bs-body-color);
+    text-decoration: underline;
+}
+
 /* An attribute's event (Attributes/event_peek): an icon at the head of its value, and
    a popover drawn as the events index's sharing group peek. Bootstrap's sanitizer
    drops the popover's inline styles: every tone is a class. */

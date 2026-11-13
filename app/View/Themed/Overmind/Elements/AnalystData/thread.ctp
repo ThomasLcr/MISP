@@ -17,6 +17,10 @@
  *                  nothing, for a host with an empty state of its own
  *   $reply       : offer the reply buttons (default true); edit and delete
  *                  stay either way
+ *   $entryContext: optional callable($type, $item, $nested): HTML for a line
+ *                  under an entry's body, for what the host knows about it
+ *
+ * Every entry carries its organisation as data-ad-org, for a host filter.
  */
 App::uses('ClassRegistry', 'Utility');
 App::uses('DistributionLevel', 'Tools');
@@ -27,6 +31,7 @@ $limit = !empty($limit);
 $peek = !empty($peek);
 $showEmpty = !isset($showEmpty) || $showEmpty;
 $reply = !isset($reply) || $reply;
+$entryContext = isset($entryContext) && is_callable($entryContext) ? $entryContext : null;
 if (!isset($analystData) && ($objectType === '' || $objectUuid === '')) {
     return;
 }
@@ -258,7 +263,7 @@ $relationship = function ($item, $inbound) use ($target, $selfNoun) {
     return '<p class="adr-rel"><i class="fas fa-diagram-project adr-rel-ico" aria-hidden="true"></i>' . $sentence . '</p>';
 };
 
-$entry = function ($type, $item, $depth, $hidden = false) use (&$entry, $meta, $gauge, $actions, $relationship, $initials, $peek, $peekLabels, $baseurl) {
+$entry = function ($type, $item, $depth, $hidden = false) use (&$entry, $meta, $gauge, $actions, $relationship, $initials, $peek, $peekLabels, $baseurl, $entryContext) {
     $nested = $depth > 0;
     $inbound = $type === 'RelationshipInbound';
     $clamp = $nested ? '' : ' adr-clamp';
@@ -272,6 +277,12 @@ $entry = function ($type, $item, $depth, $hidden = false) use (&$entry, $meta, $
         }
     } else {
         $body .= $relationship($item, $inbound);
+    }
+    if ($entryContext !== null) {
+        $context = (string)$entryContext($type, $item, $nested);
+        if ($context !== '') {
+            $body .= '<div class="adr-context">' . $context . '</div>';
+        }
     }
 
     $children = [];
@@ -331,7 +342,8 @@ $entry = function ($type, $item, $depth, $hidden = false) use (&$entry, $meta, $
         '<li class="adr-entry%s adr-kind-%s"%s><span class="adr-avatar" aria-hidden="true" title="%s">%s</span>'
         . '<div class="adr-main">%s%s%s%s</div></li>',
         ($nested ? ' adr-entry-nested' : '') . ($hidden ? ' adr-more' : ''),
-        strtolower($type), ($hidden ? ' hidden' : '') . $peekAttrs . ($nested ? '' : ' data-ad-entry'),
+        strtolower($type),
+        ($hidden ? ' hidden' : '') . $peekAttrs . ($nested ? '' : ' data-ad-entry') . ' data-ad-org="' . h($org) . '"',
         h($org), h($initials($org)),
         $meta($item), $body, $actions($item, $inbound ? 'Relationship' : $type, $nested), $replies
     );
