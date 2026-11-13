@@ -431,6 +431,15 @@
                 }
                 active[select.dataset.vpFilterKey] = select.value;
             });
+        // A segmented switch narrows as a select does; its value is the
+        // pressed pill's, empty for "All".
+        list.querySelectorAll('[data-vp-filter-seg]').forEach(function (seg) {
+            var value = seg.dataset.vpValue || '';
+            if (value === '' || !controlNarrows(list, seg)) {
+                return;
+            }
+            active[seg.dataset.vpFilterKey] = value;
+        });
         return active;
     }
 
@@ -699,77 +708,7 @@
         } else {
             paginate(list, filtered);
         }
-        // A span strip draws every row the section holds, not the page,
-        // so it follows the narrowing rather than the pager — and it
-        // runs for any list that has one rather than for a named panel.
-        paintSpanStrips(list, filtered);
         updateListNotes(list, filtered.length, activeCount);
-    }
-
-    /**
-     * Dim the spans of rows a filter has removed.
-     *
-     * **Dimmed and not removed**, which is the strip's whole claim on
-     * the panel: the axis is the period the *section* covers, so a
-     * narrowing that drops the oldest resolution must not shorten the
-     * axis under the reader — the gap it left is the reading. A redrawn
-     * strip would rescale, and the dormant-then-reactivated shape §25.1
-     * is about would silently become continuously-live.
-     *
-     * The lane count goes to what survived, with the total kept beneath
-     * it, because a lane still showing 46 over three visible spans is
-     * the one number on the panel nothing on screen agrees with.
-     *
-     * @param {Element} list
-     * @param {Array<Element>} filtered Rows that survived
-     */
-    function paintSpanStrips(list, filtered) {
-        var strips = ownNodes(list, '[data-vp-span-strip]');
-        if (!strips.length) {
-            return;
-        }
-        var kept = {};
-        filtered.forEach(function (row) {
-            if (row.dataset.vpSpanKey) {
-                kept[row.dataset.vpSpanKey] = true;
-            }
-        });
-        strips.forEach(function (strip) {
-            var lanes = {};
-            strip.querySelectorAll('[data-vp-span-row]').forEach(
-                function (span) {
-                    var on = !!kept[span.dataset.vpSpanRow];
-                    span.classList.toggle('vp-lane-span-off', !on);
-                    var lane = span.closest('[data-vp-span-lane]');
-                    if (!lane) {
-                        return;
-                    }
-                    var key = lane.dataset.vpSpanLane;
-                    if (lanes[key] === undefined) {
-                        lanes[key] = 0;
-                    }
-                    if (on) {
-                        lanes[key]++;
-                    }
-                }
-            );
-            Object.keys(lanes).forEach(function (key) {
-                var cell = strip.querySelector(
-                    '[data-vp-span-count="' + key + '"]'
-                );
-                if (!cell) {
-                    return;
-                }
-                var total = parseInt(cell.dataset.vpSpanTotal || '', 10);
-                cell.textContent = String(lanes[key]);
-                var note = cell.parentNode
-                    ? cell.parentNode.querySelector('[data-vp-span-of]')
-                    : null;
-                if (note) {
-                    note.hidden = isNaN(total) || lanes[key] === total;
-                }
-            });
-        });
     }
 
     /**
@@ -1546,7 +1485,9 @@
      * @param {Element} button A [data-vp-pill]
      */
     function pickPill(button) {
-        var group = button.closest('[data-vp-sort], [data-vp-group]');
+        var group = button.closest(
+            '[data-vp-sort], [data-vp-group], [data-vp-filter-seg]'
+        );
         if (!group || button.dataset.vpPill === group.dataset.vpValue) {
             return;
         }
@@ -1558,6 +1499,13 @@
         });
         if (group.hasAttribute('data-vp-group')) {
             switchGroup(group);
+            return;
+        }
+        if (group.hasAttribute('data-vp-filter-seg')) {
+            var segList = group.closest('[data-vp-list]');
+            if (segList) {
+                narrowList(segList);
+            }
             return;
         }
         var list = group.closest('[data-vp-list]');
@@ -2125,7 +2073,8 @@
      * and by that organisation; those are marked, and the replies holding
      * one are opened.
      *
-     * @param {Element} card A [data-vp-analyst-preview] or [data-vp-analyst-collab]
+     * @param {Element} card A [data-vp-analyst-preview], [data-vp-analyst-collab]
+     *                       or [data-vp-analyst-claims]
      */
     function filterAnalystCard(card) {
         var input = card.querySelector('[data-vp-analyst-filter]');
@@ -2306,7 +2255,9 @@
      * @param {Element} button A [data-vp-ad-kind]
      */
     function pickAnalystKind(button) {
-        var card = button.closest('[data-vp-analyst-collab]');
+        var card = button.closest(
+            '[data-vp-analyst-collab], [data-vp-analyst-claims]'
+        );
         if (!card) {
             return;
         }
@@ -2335,7 +2286,6 @@
         button.setAttribute('aria-expanded', open ? 'true' : 'false');
         button.textContent = button.getAttribute(open ? 'data-less' : 'data-more');
     }
-
 
     /* ==================================================================
      * Charts
@@ -4968,14 +4918,17 @@
     }
 
     /**
-     * Open or shut one object's attribute table.
+     * Open or shut one object's attribute table: an object drawn as the
+     * objects index draws it (`tbody[data-vp-obj]`, its toggle
+     * `[data-vp-obj-disc]` and its attribute row `[data-vp-obj-fold]`),
+     * in an enrichment answer or in the Relationships tab.
      *
      * @param {Element} item An object card
      * @param {boolean} open
      */
-    function setEnrichFold(item, open) {
-        var head = item.querySelector('[data-vp-e-disc]');
-        var fold = item.querySelector('[data-vp-e-fold]');
+    function setObjectFold(item, open) {
+        var head = item.querySelector('[data-vp-obj-disc]');
+        var fold = item.querySelector('[data-vp-obj-fold]');
         if (!head || !fold) {
             return;
         }
@@ -5000,14 +4953,160 @@
      *
      * @param {Element} button
      */
-    function toggleEnrichDisc(button) {
-        var item = button.closest('[data-vp-e-item]');
+    function toggleObjectFold(button) {
+        var item = button.closest('[data-vp-obj]');
         if (!item) {
             return;
         }
         var open = button.getAttribute('aria-expanded') !== 'true';
-        setEnrichFold(item, open);
-        item.dataset.vpEWas = open ? 'true' : 'false';
+        setObjectFold(item, open);
+        item.dataset.vpObjWas = open ? 'true' : 'false';
+    }
+
+    /**
+     * The Labels card: its search, its Clusters / Tags switch and each
+     * family's "+N more", read from the markup every time. A narrowing
+     * shows every match, folded or not; cleared, a family is folded again
+     * unless the reader opened it.
+     *
+     * @param {Element} card [data-vp-lab-card]
+     */
+    function refreshLabels(card) {
+        var input = card.querySelector('[data-vp-lab-filter]');
+        var query = input ? input.value.trim().toLowerCase() : '';
+        var on = card.querySelector('[data-vp-lab-kind-btn].active');
+        var kind = on ? on.dataset.vpLabKindBtn : 'all';
+        var narrowed = query !== '' || kind !== 'all';
+        var any = false;
+        card.querySelectorAll('[data-vp-lab-tier]').forEach(function (tier) {
+            var tierHits = 0;
+            tier.querySelectorAll('[data-vp-lab-fam]').forEach(function (fam) {
+                var open = narrowed || fam.dataset.vpLabOpen === 'true';
+                var hits = 0;
+                var hidden = 0;
+                fam.querySelectorAll('[data-vp-lab]').forEach(function (chip) {
+                    var match = (kind === 'all'
+                            || chip.dataset.vpLabKind === kind)
+                        && (query === ''
+                            || chip.dataset.vpLabText.indexOf(query) !== -1);
+                    var folded = !open && chip.classList.contains('is-folded');
+                    chip.classList.toggle('d-none', !match || folded);
+                    if (match) {
+                        hits++;
+                        if (folded) {
+                            hidden++;
+                        }
+                    }
+                });
+                var more = fam.querySelector('[data-vp-lab-more]');
+                if (more) {
+                    more.classList.toggle('d-none', hidden === 0);
+                    more.textContent = (more.dataset.vpLabMoreLabel || '+%d')
+                        .replace('%d', hidden);
+                }
+                fam.classList.toggle('d-none', hits === 0);
+                tierHits += hits;
+            });
+            tier.classList.toggle('d-none', tierHits === 0);
+            any = any || tierHits > 0;
+        });
+        var empty = card.querySelector('[data-vp-lab-empty]');
+        if (empty) {
+            empty.classList.toggle('d-none', any);
+        }
+    }
+
+    /**
+     * Outside this instance: a source's remote events past the first few.
+     *
+     * @param {Event} event
+     * @return {boolean}
+     */
+    function onExternalClick(event) {
+        var more = event.target.closest('[data-vp-ext-more]');
+        if (!more) {
+            return false;
+        }
+        var host = more.closest('.vp-ext-events');
+        host.querySelectorAll('[data-vp-ext-fold]').forEach(function (link) {
+            link.classList.remove('d-none');
+        });
+        more.classList.add('d-none');
+        return true;
+    }
+
+    /**
+     * @param {Event} event
+     * @return {boolean} Whether the click belonged to the Labels card
+     */
+    function onLabelsClick(event) {
+        var more = event.target.closest('[data-vp-lab-more]');
+        if (more) {
+            var fam = more.closest('[data-vp-lab-fam]');
+            fam.dataset.vpLabOpen = 'true';
+            refreshLabels(more.closest('[data-vp-lab-card]'));
+            return true;
+        }
+        var kind = event.target.closest('[data-vp-lab-kind-btn]');
+        if (kind) {
+            kind.parentNode.querySelectorAll('[data-vp-lab-kind-btn]')
+                .forEach(function (button) {
+                    var active = button === kind;
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+            refreshLabels(kind.closest('[data-vp-lab-card]'));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * While a search narrows a list of objects, the objects it kept open
+     * so the match shows; cleared, each goes back to how the reader
+     * left it.
+     *
+     * @param {Element} list
+     */
+    function openObjectHits(list) {
+        var needle = activeText(list);
+        listRows(list).forEach(function (row) {
+            if (!row.hasAttribute('data-vp-obj')) {
+                return;
+            }
+            if (row.dataset.vpObjWas === undefined) {
+                var head = row.querySelector('[data-vp-obj-disc]');
+                row.dataset.vpObjWas = head
+                    && head.getAttribute('aria-expanded') === 'true'
+                    ? 'true'
+                    : 'false';
+            }
+            setObjectFold(row, needle === ''
+                ? row.dataset.vpObjWas === 'true'
+                : true);
+        });
+    }
+
+    /**
+     * The whole object cell opens its object, as in the objects index;
+     * a link or another button inside it keeps its own meaning.
+     *
+     * @param {Event} event
+     * @return {boolean} Whether the click was an object toggle
+     */
+    function onObjectFoldClick(event) {
+        var cell = event.target.closest('[data-vp-obj] td.oi-col-object');
+        var disc = event.target.closest('[data-vp-obj-disc]');
+        if (!disc && cell
+            && !event.target.closest('a, button, [data-bs-toggle]')
+        ) {
+            disc = cell.querySelector('[data-vp-obj-disc]');
+        }
+        if (!disc) {
+            return false;
+        }
+        toggleObjectFold(disc);
+        return true;
     }
 
     /**
@@ -5021,9 +5120,9 @@
             return;
         }
         var open = button.dataset.vpEFoldAll !== 'close';
-        scope.querySelectorAll('[data-vp-e-obj]').forEach(function (obj) {
-            setEnrichFold(obj, open);
-            obj.dataset.vpEWas = open ? 'true' : 'false';
+        scope.querySelectorAll('[data-vp-obj]').forEach(function (obj) {
+            setObjectFold(obj, open);
+            obj.dataset.vpObjWas = open ? 'true' : 'false';
         });
         button.dataset.vpEFoldAll = open ? 'close' : 'open';
 
@@ -5072,17 +5171,17 @@
             if (hit) {
                 shown++;
             }
-            if (item.hasAttribute('data-vp-e-obj')) {
-                if (item.dataset.vpEWas === undefined) {
-                    var head = item.querySelector('[data-vp-e-disc]');
-                    item.dataset.vpEWas = head
+            if (item.hasAttribute('data-vp-obj')) {
+                if (item.dataset.vpObjWas === undefined) {
+                    var head = item.querySelector('[data-vp-obj-disc]');
+                    item.dataset.vpObjWas = head
                         && head.getAttribute('aria-expanded') === 'true'
                         ? 'true'
                         : 'false';
                 }
-                setEnrichFold(
+                setObjectFold(
                     item,
-                    query === '' ? item.dataset.vpEWas === 'true' : hit
+                    query === '' ? item.dataset.vpObjWas === 'true' : hit
                 );
             }
         });
@@ -6393,22 +6492,6 @@
         var foldAll = event.target.closest('[data-vp-e-fold-all]');
         if (foldAll) {
             toggleEnrichFoldAll(foldAll);
-            return true;
-        }
-
-        // The whole object cell opens it, as in the objects index.
-        var objCell = event.target.closest('[data-vp-e-obj] td.oi-col-object');
-        if (objCell && !event.target.closest('a, button:not([data-vp-e-disc])')) {
-            var objDisc = objCell.querySelector('[data-vp-e-disc]');
-            if (objDisc) {
-                toggleEnrichDisc(objDisc);
-                return true;
-            }
-        }
-
-        var disc = event.target.closest('[data-vp-e-disc]');
-        if (disc) {
-            toggleEnrichDisc(disc);
             return true;
         }
 
@@ -9854,6 +9937,18 @@
                 return;
             }
 
+            if (onObjectFoldClick(event)) {
+                return;
+            }
+
+            if (onLabelsClick(event)) {
+                return;
+            }
+
+            if (onExternalClick(event)) {
+                return;
+            }
+
             if (onEnrichClick(event)) {
                 return;
             }
@@ -10020,7 +10115,8 @@
             }
             if (event.target.matches('[data-vp-analyst-filter]')) {
                 var analystCard = event.target.closest(
-                    '[data-vp-analyst-preview], [data-vp-analyst-collab]'
+                    '[data-vp-analyst-preview], [data-vp-analyst-collab],'
+                    + ' [data-vp-analyst-claims]'
                 );
                 if (analystCard) {
                     filterAnalystCard(analystCard);
@@ -10035,6 +10131,10 @@
                 filterEnrichResult(event.target);
                 return;
             }
+            if (event.target.matches('[data-vp-lab-filter]')) {
+                refreshLabels(event.target.closest('[data-vp-lab-card]'));
+                return;
+            }
             if (event.target.matches(
                 '[data-vp-filter-text], [data-vp-filter-min],'
                 + ' [data-vp-filter-from], [data-vp-filter-to],'
@@ -10043,6 +10143,7 @@
                 var typedList = event.target.closest('[data-vp-list]');
                 if (typedList) {
                     narrowList(typedList);
+                    openObjectHits(typedList);
                 }
             }
         });

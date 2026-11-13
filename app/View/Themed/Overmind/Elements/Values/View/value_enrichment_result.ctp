@@ -594,11 +594,11 @@ $manyObjects = count($run['objects']) > 1;
                         }
                         $pick = $pickFor($object, 'object');
                         ?>
-                        <tbody data-vp-e-item data-vp-e-obj<?= $pickAttr($pick) ?>>
+                        <tbody data-vp-e-item data-vp-obj<?= $pickAttr($pick) ?>>
                             <tr<?= $open ? ' class="oi-open"' : '' ?>>
                                 <td class="oi-col-object" title="<?= h((string)($object['description'] ?? '')) ?>">
                                     <div class="oi-object">
-                                        <button type="button" class="oi-expand" data-vp-e-disc
+                                        <button type="button" class="oi-expand" data-vp-obj-disc
                                                 aria-expanded="<?= $open ? 'true' : 'false' ?>"
                                                 title="<?= h(__('Show its attributes')) ?>">
                                             <i class="fas fa-chevron-right" aria-hidden="true"></i>
@@ -624,7 +624,7 @@ $manyObjects = count($run['objects']) > 1;
                                     <td class="vp-e-pickcell"><?= $pickControl($pick) ?></td>
                                 <?php endif; ?>
                             </tr>
-                            <tr class="oi-detail<?= $open ? '' : ' d-none' ?>" data-vp-e-fold>
+                            <tr class="oi-detail<?= $open ? '' : ' d-none' ?>" data-vp-obj-fold>
                                 <td colspan="<?= $canPick ? 2 : 1 ?>">
                                     <div class="oi-card">
                                         <?php if (empty($object['attributes'])): ?>

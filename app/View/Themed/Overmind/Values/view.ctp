@@ -721,22 +721,17 @@ $tabRegistry = array(
          * references a handful — and one slow scan must not hold up the
          * two sections a person wrote by hand.
          */
-        'left' => array(
-            /*
-             * A contents strip over the six endpoints, and the only
-             * thing on this tab that renders before them: seven cards
-             * — the co-occurrence endpoint draws two sections — each
-             * holding one section's headline number and jumping to it.
-             * It is markup only. The numbers arrive from the panels
-             * themselves as they land, because computing any of them
-             * here would mean running the scan the tab is lazily
-             * loaded to avoid.
-             */
+        /*
+         * The contents strip: one card per section, each with its
+         * headline number, jumping to it. Markup only; the numbers arrive
+         * from the panels as they land. Full width, so the cards share
+         * one row.
+         */
+        'top' => array(
             array('element' => 'Values/View/value_relation_summary'),
+        ),
+        'left' => array(
             $panel('viewRelationCooccurrence', 'vp-rel-sec-cooccurrence'),
-            $panel('viewRelationDated', 'vp-rel-sec-dated'),
-            $panel('viewRelationNearMatch', 'vp-rel-sec-near'),
-            $panel('viewRelationExternal', 'vp-rel-sec-external'),
             $panel('viewRelationReferences', 'vp-rel-sec-references'),
             $panel('viewRelationAsserted', 'vp-rel-sec-asserted'),
         ),
@@ -754,9 +749,18 @@ $tabRegistry = array(
          * those carries one section's headline number and jumps to it,
          * and this has no left-column section to jump to.
          */
+        /*
+         * The three answers that are a yes or a no on most values (is it
+         * in a feed, is something close to it, is it paired in a dated
+         * record) sit in the rail under the threats, compact, and keep
+         * their card on the contents strip.
+         */
         'right' => array(
             $panel('viewRelationGraph'),
             $panel('viewRelationThreats'),
+            $panel('viewRelationExternal', 'vp-rel-sec-external'),
+            $panel('viewRelationNearMatch', 'vp-rel-sec-near'),
+            $panel('viewRelationDated', 'vp-rel-sec-dated'),
             $panel('viewRelationSettings'),
         ),
     ),

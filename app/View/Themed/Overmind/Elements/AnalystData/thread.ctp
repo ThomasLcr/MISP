@@ -20,6 +20,11 @@
  *   $entryContext: optional callable($type, $item, $nested): HTML for a line
  *                  under an entry's body, for what the host knows about it
  *
+ * A relationship may carry `_self`, the words for this record's end when the
+ * host knows better than the record type (a value's claim written on its
+ * event), and its resolved end may carry `_url` where the record has no
+ * page by id (a value).
+ *
  * Every entry carries its organisation as data-ad-org, for a host filter.
  */
 App::uses('ClassRegistry', 'Utility');
@@ -100,6 +105,7 @@ $selfNouns = [
     'Note' => __('this note'),
     'Opinion' => __('this opinion'),
     'Relationship' => __('this relationship'),
+    'AttributeValue' => __('this value'),
 ];
 $selfNoun = $selfNouns[$objectType] ?? __('this record');
 
@@ -112,6 +118,7 @@ $targets = [
     'EventReport' => ['icon' => 'misp-icon misp-icon-report misp-simple', 'label' => 'name', 'path' => '/event_reports/view/'],
     'SharingGroup' => ['icon' => 'misp-icon misp-icon-sharing-group misp-simple', 'label' => 'name', 'path' => '/sharing_groups/view/'],
     'Collection' => ['icon' => 'fas fa-layer-group', 'label' => 'name', 'path' => '/collections/view/'],
+    'AttributeValue' => ['icon' => 'misp-icon misp-icon-value-intelligence misp-simple', 'label' => 'value', 'path' => '/values/view/'],
 ];
 
 $ago = function ($created) {
@@ -239,7 +246,7 @@ $target = function ($type, $uuid, $resolved) use ($targets, $baseurl) {
             h($baseurl . '/analystData/view/' . $type . '/' . $uuid), h($type)
         );
     }
-    if ($spec === null || empty($record['id'])) {
+    if ($spec === null || (empty($record['id']) && empty($record['_url']))) {
         return sprintf(
             '<span class="adr-target adr-target-bare" title="%1$s">%2$s <span class="font-monospace">%3$s</span></span>',
             h($uuid), h($type), h(substr((string)$uuid, 0, 8))
@@ -248,13 +255,13 @@ $target = function ($type, $uuid, $resolved) use ($targets, $baseurl) {
     $label = $record[$spec['label']] ?? $type;
     return sprintf(
         '<a class="adr-target" href="%s" title="%s"><i class="adr-target-ico %s" aria-hidden="true"></i><span class="adr-target-label">%s</span></a>',
-        h($baseurl . $spec['path'] . $record['id']), h($label), h($spec['icon']), h($label)
+        h($record['_url'] ?? $baseurl . $spec['path'] . $record['id']), h($label), h($spec['icon']), h($label)
     );
 };
 
 $relationship = function ($item, $inbound) use ($target, $selfNoun) {
     $verb = '<span class="adr-verb">' . h(str_replace(['-', '_'], ' ', $item['relationship_type'] ?? 'related-to')) . '</span>';
-    $self = '<span class="adr-self">' . h($selfNoun) . '</span>';
+    $self = '<span class="adr-self">' . h($item['_self'] ?? $selfNoun) . '</span>';
     $resolved = $item['related_object'] ?? [];
     $other = $inbound
         ? $target($item['object_type'] ?? '', $item['object_uuid'] ?? '', $resolved)

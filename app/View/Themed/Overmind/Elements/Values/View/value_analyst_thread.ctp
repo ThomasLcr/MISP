@@ -1,4 +1,5 @@
 <?php
+App::uses('ValueAnalystThreadTool', 'Tools/ValueIntelligence');
 /**
  * The Collaboration tab's Notes and opinions: what analysts wrote about this
  * value, drawn by the shared AnalystData/thread as on the Overview and in the
@@ -31,39 +32,9 @@ $addUrl = function ($kind) use ($baseurl, $hex) {
     return $baseurl . '/analystData/add/' . $kind . '/' . $hex . '/AttributeValue';
 };
 
-/**
- * One item of the value's union, in the shape AnalystData/thread reads, with
- * what the context line needs under `_target` and `_rates`.
- */
-$threadRow = function (array $item) use (&$threadRow) {
-    $row = array(
-        'id' => $item['id'] ?? null,
-        'uuid' => $item['uuid'] ?? null,
-        'created' => $item['created'] ?? $item['date'],
-        'distribution' => $item['distribution'],
-        'authors' => $item['author'],
-        'Orgc' => array('name' => $item['org']),
-        '_canEdit' => !empty($item['can_edit']),
-        '_max_depth_reached' => !empty($item['max_depth_reached']),
-        '_target' => $item['attached_to'] ?? null,
-        '_rates' => $item['rates'] ?? 'value',
-        'Note' => array(),
-        'Opinion' => array(),
-    );
-    if ($item['kind'] === 'opinion') {
-        $row['opinion'] = (int)$item['score'];
-        $row['comment'] = $item['body'];
-    } else {
-        $row['note'] = $item['body'];
-    }
-    foreach ($item['children'] ?? array() as $child) {
-        $row[$child['kind'] === 'opinion' ? 'Opinion' : 'Note'][] = $threadRow($child);
-    }
-    return $row;
-};
 $thread = array('Note' => array(), 'Opinion' => array(), 'Relationship' => array(), 'RelationshipInbound' => array());
 foreach ($items as $item) {
-    $thread[$item['kind'] === 'opinion' ? 'Opinion' : 'Note'][] = $threadRow($item);
+    $thread[$item['kind'] === 'opinion' ? 'Opinion' : 'Note'][] = ValueAnalystThreadTool::row($item);
 }
 
 $entryContext = function ($type, $item, $nested) {

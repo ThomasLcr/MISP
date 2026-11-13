@@ -3281,7 +3281,9 @@ class Value extends AppModel
      *
      * @param array $user
      * @param string $value The value to exclude — our own occurrences
-     * @param array $scope `events` or `objects`, a list of ids
+     * @param array $scope `events` or `objects`, a list of ids; `own`
+     *                     true reads this value's occurrences in that
+     *                     scope instead of the others
      * @param array $options As conditionsFor, plus `limit`
      * @return array fetchAttributesSimple rows
      */
@@ -3297,11 +3299,12 @@ class Value extends AppModel
         $column = isset($scope['events'])
             ? 'Attribute.event_id'
             : 'Attribute.object_id';
+        $match = $this->conditionsFor($value, $options);
         $params = array(
             'conditions' => array(
                 $column => array_values($ids),
                 'Attribute.deleted' => 0,
-                'NOT' => $this->conditionsFor($value, $options),
+                empty($scope['own']) ? 'NOT' : 'AND' => $match,
             ),
             'fields' => array(
                 'Attribute.id',
@@ -3314,6 +3317,7 @@ class Value extends AppModel
                 'Attribute.timestamp',
                 'Attribute.distribution',
                 'Attribute.sharing_group_id',
+                'Attribute.to_ids',
                 /*
                  * MISP's own record of which attributes in an object
                  * are there to link and which are there to describe.

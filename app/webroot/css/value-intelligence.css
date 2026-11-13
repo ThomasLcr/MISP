@@ -656,20 +656,6 @@ tr.vp-occ-deleted td {
 }
 
 /*
- * A field MISP does not correlate on: it describes the object it sits
- * in rather than leading anywhere out of it. Dimmed and untinted, which
- * is the same de-emphasis the tab uses elsewhere — the sibling table
- * already ranks these below the linking rows, so the cell only has to
- * keep the boundary visible once a column sort has mixed them back
- * together.
- */
-.vp-relation-desc {
-    background: var(--bs-secondary-bg);
-    color: var(--bs-secondary-color);
-    opacity: 0.75;
-}
-
-/*
  * A neighbour MISP already knows to be benign. Dimmed, not struck
  * through and not hidden: the row is still evidence — a resolver
  * genuinely does sit in these events — it is merely the least
@@ -679,16 +665,11 @@ tr.vp-occ-deleted td {
  * The value only, not the whole row. `1.1.1.1` being on the public
  * resolver list says nothing about the four organisations that reported
  * it or the date they last did, and dimming those cells would claim it
- * did. The same reading as `.vp-relation-desc` above, applied to the
- * one cell the finding is about.
+ * did. Applied to the one cell the finding is about.
  */
 .vp-rel-listed {
     color: var(--bs-secondary-color);
     opacity: 0.75;
-}
-
-[data-misp-mode="dark"] .vp-relation-desc {
-    background: var(--bs-secondary-bg);
 }
 
 /*
@@ -747,51 +728,6 @@ tr.vp-occ-deleted td {
 .vp-tech-more:hover,
 .vp-tech-more:focus-visible {
     text-decoration: underline;
-}
-
-/* ==================================================================
- * Analyst data preview
- * ================================================================== */
-
-.vp-analyst {
-    display: flex;
-    gap: 12px;
-    padding: 10px 12px;
-    border: 1px solid var(--bs-border-color);
-    border-left: 3px solid var(--analystData);
-    border-radius: 8px;
-}
-
-.vp-analyst-kind {
-    display: flex;
-    flex: 0 0 84px;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--analystData);
-}
-
-[data-misp-mode="dark"] .vp-analyst-kind {
-    color: color-mix(in srgb, var(--analystData) 55%, var(--bs-body-color));
-}
-
-.vp-analyst-body {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-.vp-analyst-text {
-    font-size: 0.85rem;
-    white-space: pre-wrap;
-}
-
-.vp-analyst-meta {
-    margin-top: 4px;
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
 }
 
 .vp-verdict-summary {
@@ -1362,6 +1298,10 @@ tr.vp-occ-deleted td {
 }
 
 /* Small, in a meta line (the History tab's section heads, the comments). */
+.vp-orglink.is-bare {
+    gap: 0;
+}
+
 .vp-orglink.is-sm {
     gap: 5px;
     font-size: .76rem;
@@ -2016,112 +1956,6 @@ tr.vp-occ-deleted td {
         135deg,
         color-mix(in srgb, var(--bs-danger) 55%, transparent) 0 4px,
         transparent 4px 8px);
-}
-
-.vp-weight {
-    display: grid;
-    grid-template-columns: 10px minmax(0, 150px) 1fr 52px;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.78rem;
-}
-
-.vp-weight-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    background: var(--vp-seg-color);
-}
-
-.vp-weight-swatch-empty {
-    background: transparent;
-}
-
-.vp-weight-label {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.vp-weight-track {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--bs-secondary-bg);
-    overflow: hidden;
-}
-
-.vp-weight-fill {
-    display: block;
-    height: 100%;
-    background: var(--vp-seg-color);
-}
-
-/*
- * A deduction is hatched rather than recoloured: the segment keeps the
- * colour of the group it came out of, so the strip and the row still
- * read as the same thing.
- */
-.vp-weight-fill-down {
-    background-image: repeating-linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--bs-body-bg) 65%, transparent) 0 3px,
-        transparent 3px 6px);
-}
-
-.vp-weight-points {
-    text-align: right;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.vp-weight-points-down {
-    color: var(--bs-danger);
-}
-
-.vp-weight-total {
-    margin-top: 4px;
-    padding-top: 8px;
-    border-top: 1px solid var(--bs-border-color);
-    font-weight: 700;
-}
-
-/* The total is a sum, not a share, so it gets no bar to be read as one. */
-.vp-weight-total .vp-weight-track {
-    background: transparent;
-}
-
-/* ==================================================================
- * Rail cards
- * ------------------------------------------------------------------
- * A col-lg-3 card has room for a label and a number on one line, and
- * nothing else. Anything that was a row of four columns in the main
- * area becomes two rows here rather than four crushed ones.
- * ================================================================== */
-
-.vp-aside .vp-weight {
-    grid-template-columns: 10px minmax(0, 1fr) 42px;
-    row-gap: 3px;
-    font-size: 0.74rem;
-}
-
-.vp-aside .vp-weight-swatch {
-    grid-row: 1;
-    grid-column: 1;
-}
-
-.vp-aside .vp-weight-label {
-    grid-row: 1;
-    grid-column: 2;
-}
-
-.vp-aside .vp-weight-points {
-    grid-row: 1;
-    grid-column: 3;
-}
-
-.vp-aside .vp-weight-track {
-    grid-row: 2;
-    grid-column: 2 / -1;
 }
 
 .vp-aside .vp-fact-line {
@@ -4405,7 +4239,7 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
  *   colour   one role colour per notion, used for every rail, edge,
  *            swatch and label of that notion and for nothing else;
  *   form     machine relations are table rows; a human claim is never
- *            a row — it is a .vp-analyst block with an author on it;
+ *            a row — it is an analyst-thread entry with an author on it;
  *   word     every region names its notion and says "Machine-derived"
  *            or "Human claim" in words;
  *   place    in the sketch each notion owns a labelled region, so the
@@ -4469,7 +4303,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 
 .vp-rel-k-co { --vp-rel-color: var(--vp-rel-co); }
 .vp-rel-k-near { --vp-rel-color: var(--vp-rel-near); }
-.vp-rel-k-human { --vp-rel-color: var(--vp-rel-human); }
 .vp-rel-k-external { --vp-rel-color: var(--vp-rel-external); }
 .vp-rel-k-object { --vp-rel-color: var(--vp-rel-object); }
 .vp-rel-k-event { --vp-rel-color: var(--vp-rel-event); }
@@ -4993,33 +4826,851 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
     color: var(--bs-secondary-color);
 }
 
-/*
- * ----------------------------------------------------------------------
- * The Relationships tab's contents strip
- * ----------------------------------------------------------------------
- * Seven cards over a tab seven tables tall. Two rows of three and a
- * half at the width the left column usually has, one row of seven only
- * where there is genuinely room for it — a card narrower than about
- * 150px puts "Outside this instance" on three lines and the strip stops
- * being readable at a glance, which is the only thing it is for.
- */
+/* "Asserted by analysts": what a claim's far end is, on the thread's
+   context line. */
+.vp-claim-far {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    min-width: 0;
+}
+
+.vp-claim-far > i {
+    font-size: .7rem;
+    opacity: .7;
+}
+
+/* "Object relationships": the records at the other end, as the objects
+   index draws them, with the relationships linking them to this value. */
+.vp-ref-table .oi-col-event,
+.vp-ref-table .oi-col-org {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.vp-ref-noexpand {
+    visibility: hidden;
+}
+
+.vp-ref-attr {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-width: 0;
+}
+
+.vp-ref-attr-value {
+    color: var(--bs-emphasis-color);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.vp-ref-attr-in {
+    color: var(--bs-secondary-color);
+    font-size: .76rem;
+}
+
+.vp-ref-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.vp-ref-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    border: 1px solid color-mix(in srgb, var(--vp-rel-reference) 30%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vp-rel-reference) 10%, var(--bs-body-bg));
+    color: var(--vp-rel-reference);
+    font-family: var(--bs-font-monospace);
+    font-size: .72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vp-ref-link > i {
+    font-size: .7rem;
+}
+
+/* A reference nobody named: MISP stores an empty type. */
+.vp-ref-link.is-unnamed {
+    border-style: dashed;
+    font-style: italic;
+    font-weight: 500;
+}
+
+.vp-ref-link-n {
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--bs-body-bg);
+    font-family: var(--bs-body-font-family);
+    font-size: .64rem;
+}
+
+.vp-ref-via {
+    margin-top: 3px;
+    color: var(--bs-secondary-color);
+    font-size: .74rem;
+}
+
+.vp-ref-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--bs-border-color);
+    color: var(--bs-secondary-color);
+    font-size: .74rem;
+}
+
+.vp-ref-foot i {
+    margin-right: 5px;
+    font-size: .68rem;
+}
+
+/* The Relationships rail's three answer cards: Outside this instance,
+   Near-matches, Dated relations. Lists, one short line each when there
+   is nothing to list. */
+.vp-rail-none {
+    padding: 12px 16px;
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+    line-height: 1.45;
+}
+
+.vp-rail-foot {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+    line-height: 1.4;
+}
+
+/* Outside this instance */
+.vp-ext-novel {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    font-size: .8rem;
+    line-height: 1.45;
+    color: var(--bs-secondary-color);
+}
+
+.vp-ext-novel > i {
+    margin-top: 2px;
+    color: var(--vp-rel-external);
+    font-size: 1rem;
+}
+
+.vp-ext-novel strong {
+    display: block;
+    color: var(--bs-emphasis-color);
+}
+
+.vp-ext-list,
+.vp-nm-list,
+.vp-dt-list,
+.vp-nm-engines {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.vp-ext-src {
+    padding: 10px 16px;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.vp-ext-src:first-child {
+    border-top: 0;
+}
+
+.vp-ext-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vp-ext-ic {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--vp-rel-external) 12%, var(--bs-body-bg));
+    color: var(--vp-rel-external);
+    font-size: .78rem;
+}
+
+.vp-ext-name {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.vp-ext-name a {
+    overflow: hidden;
+    color: var(--bs-emphasis-color);
+    font-size: .84rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-ext-name a:hover {
+    text-decoration: underline;
+}
+
+.vp-ext-kind {
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+}
+
+.vp-ext-n {
+    flex: none;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vp-rel-external) 14%, var(--bs-body-bg));
+    color: var(--vp-rel-external);
+    font-size: .72rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-ext-events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin: 7px 0 0 38px;
+}
+
+.vp-ext-empty {
+    color: var(--bs-secondary-color);
+    font-size: .74rem;
+}
+
+.vp-ext-event {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 1px 7px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 5px;
+    color: var(--bs-body-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .68rem;
+    text-decoration: none;
+}
+
+.vp-ext-event > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-ext-event > i {
+    color: var(--vp-rel-external);
+    font-size: .6rem;
+}
+
+.vp-ext-event:hover {
+    border-color: var(--vp-rel-external);
+}
+
+.vp-ext-more {
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: var(--bs-link-color);
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.vp-ext-more:disabled {
+    color: var(--bs-secondary-color);
+}
+
+/* Near-matches */
+.vp-nm-section {
+    padding: 10px 16px 4px;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.vp-nm-section:first-of-type {
+    border-top: 0;
+}
+
+.vp-nm-title {
+    margin-bottom: 4px;
+    color: var(--bs-secondary-color);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.vp-nm-title span {
+    margin-left: 4px;
+    color: var(--vp-rel-near);
+}
+
+.vp-nm-row {
+    padding: 6px 0;
+}
+
+.vp-nm-row + .vp-nm-row {
+    border-top: 1px dashed var(--bs-border-color-translucent);
+}
+
+.vp-nm-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vp-nm-value {
+    overflow: hidden;
+    color: var(--bs-emphasis-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .8rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-nm-value:hover {
+    text-decoration: underline;
+}
+
+.vp-nm-score {
+    flex: none;
+    margin-left: auto;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vp-rel-near) 14%, var(--bs-body-bg));
+    color: var(--vp-rel-near);
+    font-size: .68rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vp-nm-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    margin-top: 2px;
+    color: var(--bs-secondary-color);
+    font-size: .72rem;
+}
+
+.vp-nm-org {
+    font-weight: 600;
+}
+
+.vp-nm-engines {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    color: var(--bs-secondary-color);
+    font-size: .74rem;
+    line-height: 1.35;
+}
+
+.vp-nm-engines:first-child {
+    border-top: 0;
+}
+
+.vp-nm-engines li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.vp-nm-engines i {
+    flex: none;
+    width: 12px;
+    text-align: center;
+    font-size: .66rem;
+}
+
+.vp-nm-engines .is-ran i {
+    color: var(--vp-rel-near);
+}
+
+.vp-nm-engines .is-off i {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.vp-nm-engines strong {
+    color: var(--bs-body-color);
+    font-weight: 600;
+}
+
+/* Dated relations: one span per related value on a shared axis. */
+.vp-dt {
+    padding: 8px 16px 4px;
+}
+
+.vp-dt-axis {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    color: var(--bs-secondary-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .66rem;
+}
+
+.vp-dt-row {
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--bs-border-color-translucent);
+}
+
+.vp-dt-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.vp-dt-value {
+    overflow: hidden;
+    color: var(--bs-emphasis-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .8rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-dt-value:hover {
+    text-decoration: underline;
+}
+
+.vp-dt-track {
+    position: relative;
+    height: 6px;
+    margin: 5px 0 4px;
+    border-radius: 3px;
+    background: var(--bs-secondary-bg);
+}
+
+.vp-dt-track > i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 4px;
+    border-radius: 3px;
+    background: var(--vp-rel-object);
+}
+
+[data-misp-mode="dark"] .vp-dt-track > i {
+    background: color-mix(in srgb, var(--vp-rel-object) 45%, var(--bs-body-color));
+}
+
+/* An instant, or a span too short to draw: a dot at its place. */
+.vp-dt-track > i.is-instant {
+    width: 6px;
+    margin-left: -3px;
+    border-radius: 50%;
+}
+
+.vp-dt-when {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+}
+
+.vp-dt-when > span:first-child,
+.vp-dt-when > span:nth-child(3) {
+    font-family: var(--bs-font-monospace);
+}
+
+.vp-dt-sep {
+    opacity: .5;
+}
+
+/* The search box of a Relationships card. */
+.vp-card-search {
+    width: 16rem;
+    max-width: 100%;
+}
+
+/* "Labels in this neighbourhood": tiers by how close a label sits to this
+   value, one line per family, MISP's chips. */
+.vp-lab-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.vp-lab-own {
+    color: var(--vp-rel-co);
+}
+
+.vp-lab-tier {
+    padding: 4px 0 10px;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.vp-lab-tier:first-of-type {
+    border-top: 0;
+}
+
+.vp-lab-tier-h {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 16px 4px;
+    color: var(--bs-secondary-color);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.vp-lab-tier-h strong {
+    color: var(--bs-emphasis-color);
+    font-weight: 700;
+}
+
+.vp-lab-tier.is-value .vp-lab-tier-h strong::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background: var(--vp-rel-co);
+    vertical-align: 1px;
+}
+
+.vp-lab-fam {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 6px 14px;
+    align-items: start;
+    padding: 5px 16px;
+}
+
+.vp-lab-fam-name {
+    overflow: hidden;
+    padding-top: 3px;
+    color: var(--bs-emphasis-color);
+    font-size: .8rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-lab-fam-name span {
+    margin-left: 4px;
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+}
+
+.vp-lab-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.vp-lab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+}
+
+.vp-lab-n {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vp-rel-co) 14%, var(--bs-body-bg));
+    color: var(--vp-rel-co);
+    font-size: .68rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-lab-more {
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: var(--bs-link-color);
+    font-size: .76rem;
+    font-weight: 600;
+}
+
+.vp-lab-more:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+    .vp-lab-fam {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* "In the same events": the groupings as tabs, one toolbar (search, rank,
+   a Filters panel, the count), then each grouping drawn as its index. */
+.vp-co-tabs {
+    margin-top: -1px;
+}
+
+.vp-co-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.vp-co-rank .btn.active {
+    border-color: color-mix(in srgb, var(--vp-rel-co) 55%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--vp-rel-co) 12%, var(--bs-body-bg));
+    color: var(--vp-rel-co);
+    font-weight: 600;
+}
+
+.vp-co-filters-n {
+    margin-left: 2px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--vp-rel-co);
+    color: var(--bs-body-bg);
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.vp-co-filters {
+    width: min(52rem, calc(100vw - 2rem));
+    padding: 0;
+}
+
+.vp-co-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 4px 16px;
+    max-height: 22rem;
+    padding: 12px 14px 4px;
+    overflow-y: auto;
+}
+
+.vp-co-filters-group {
+    min-width: 0;
+}
+
+.vp-co-filters-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.vp-co-min {
+    width: 11rem;
+}
+
+.vp-co-filters-note {
+    padding: 0 14px 10px;
+    color: var(--bs-secondary-color);
+    font-size: .74rem;
+}
+
+.vp-co-count {
+    margin-left: auto;
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.vp-co-count strong {
+    color: var(--bs-emphasis-color);
+}
+
+/* A value seen with this one in more than one event. */
+.vp-co-table > tbody > tr.vp-co-recur > td:first-child {
+    box-shadow: inset 3px 0 0 var(--vp-rel-co);
+}
+
+.vp-co-val {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-width: 0;
+}
+
+.vp-co-val .vp-rel-cell {
+    font-weight: 600;
+    color: var(--bs-emphasis-color);
+    overflow-wrap: anywhere;
+}
+
+.vp-co-events,
+.vp-co-orgs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+}
+
+.vp-co-orgs {
+    gap: 4px;
+}
+
+.vp-co-more {
+    color: var(--bs-secondary-color);
+    font-size: .76rem;
+    font-weight: 600;
+}
+
+.vp-co-date {
+    color: var(--bs-secondary-color);
+    font-family: var(--bs-font-monospace);
+    font-size: .76rem;
+    white-space: nowrap;
+}
+
+/* The title takes what the other columns leave, and no more. */
+.vp-co-eventcell {
+    width: 100%;
+    max-width: 0;
+}
+
+.vp-co-event {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vp-co-event-info {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--bs-emphasis-color);
+    font-weight: 600;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vp-co-event-info:hover {
+    text-decoration: underline;
+}
+
+.vp-co-n {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vp-co-table .oi-col-event,
+.vp-co-table .oi-col-org {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.vp-co-foot {
+    padding: 8px 16px 10px;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.vp-co-scan {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    margin-top: 6px;
+    color: var(--bs-secondary-color);
+    font-size: .76rem;
+}
+
+/* "In the same object": the objects index's rows, opening on the
+   attributes; this value marked, every other one with how specific it
+   is to this value. */
+.vp-sib-table .oi-col-event,
+.vp-sib-table .oi-col-org {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.vp-sib-attrs > tbody > tr.vp-sib-is-self > td {
+    background-color: color-mix(in srgb, var(--vp-rel-co) 9%, var(--bs-body-bg));
+}
+
+.vp-sib-self {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vp-rel-co) 16%, var(--bs-body-bg));
+    color: var(--vp-rel-co);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.vp-sib-with {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.vp-sib-meter {
+    flex: none;
+    width: 56px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bs-secondary-bg);
+    overflow: hidden;
+}
+
+.vp-sib-meter > i {
+    display: block;
+    height: 100%;
+    background: var(--vp-rel-co);
+}
+
+/* The Relationships tab's contents strip: one card per section, its
+   headline number, a jump to it. */
+/* One row while the cards fit, then as many rows as the width needs. */
 .vp-relsum {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
     gap: 8px;
     margin-bottom: 1rem;
-}
-
-@media (min-width: 768px) {
-    .vp-relsum {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
-@media (min-width: 1800px) {
-    .vp-relsum {
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-    }
 }
 
 .vp-relsum-card {
@@ -5163,359 +5814,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 }
 
 /*
- * A date pair, in the Dated relations table. The object's own word for
- * each end sits under the date, because the column header is generic
- * and the object's word is not.
- */
-.vp-dated-stamp {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
-.vp-dated-relation {
-    display: block;
-    font-size: 0.68rem;
-    color: var(--bs-secondary-color);
-    font-family: var(--bs-font-monospace);
-}
-
-.vp-dated-span {
-    color: var(--bs-secondary-color);
-    padding: 0 4px;
-}
-
-/* ------------------------------------------------------------------
- * The span strip, and the controls under it
- * ------------------------------------------------------------------
- * The strip itself is the Timeline tab's lane grid — `.vp-lanes`,
- * `.vp-lane-axis`, `.vp-lane-span` — reused rather than restated, so a
- * span in a dated relation and a span on the Timeline are the same mark
- * with the same meaning. Only what surrounds it is here.
- * ------------------------------------------------------------------ */
-
-/*
- * The label column's width, and each number appears once because four
- * rules have to agree about it: the lane grid, the legend's indent, the
- * note's, and the wide variant below. The note is named here as well as
- * the strip because it is the strip's *sibling* and not its child —
- * `role="img"` is why — so the property does not cascade to it.
- */
-.vp-strip,
-.vp-strip-note {
-    --vp-strip-label: 11rem;
-}
-
-.vp-strip {
-    margin: 14px 0 12px;
-}
-
-/*
- * The Timeline tab gives its labels 15rem because they are sentences
- * ("Sightings and reports"); these are template names in a chip, and a
- * label column that wide would take the axis — the thing the strip is
- * for — down to half the panel.
- */
-.vp-strip .vp-lanes {
-    grid-template-columns: var(--vp-strip-label) 1fr 5rem;
-}
-
-/*
- * A strip labelling its lanes with stored values rather than with
- * template names, which needs the room for a reason that is not
- * comfort. 11rem elides at about 25 monospace characters, and
- * `luxtrust-unlock.com` has two dated neighbours —
- * `ns-1769.awsdns-29.co.uk` and the SOA record that opens with the
- * same 23 characters — that both rendered as `ns-1769.awsdns-29.co…`.
- * Two lanes claiming the same value read as a drawing fault, which is
- * the reading the section refuses elsewhere by spelling out *same
- * instant* rather than printing a timestamp twice.
- *
- * Affordable because this grouping only ever runs at a page of rows or
- * fewer: the axis gives up 5rem where it is carrying at most eight
- * spans, not 46. It is still an elision and not a guarantee — two
- * values sharing 38 characters would collide again, and the chip's
- * `title` is what holds the whole string either way.
- */
-.vp-strip-wide,
-.vp-strip-note-wide {
-    --vp-strip-label: 16rem;
-}
-
-/*
- * Two lanes do not need the room seven do. The Timeline's 3.3rem is
- * sized for a lane that has to carry its own explanation; nothing here
- * does.
- */
-.vp-strip .vp-lane-axis {
-    min-height: 2.4rem;
-    padding: 3px 5px;
-}
-
-/*
- * A grid column does not clip its child by default, so a long template
- * name walks out of the label column and over the axis. `min-width: 0`
- * is what lets the chip inside actually shrink.
- */
-.vp-strip .vp-lane-label {
-    min-width: 0;
-    overflow: hidden;
-}
-
-.vp-strip-tag {
-    max-width: 100%;
-}
-
-.vp-strip-tag-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/*
- * A lane labelled with a stored value rather than with a name, and the
- * three properties this turns off are an honesty rule and not a taste
- * one. `.vp-rel-tag` uppercases and letter-spaces its text because a
- * template name is a label; a value is a string MISP holds, and
- * `dns.google` printed as DNS.GOOGLE is a value the instance never
- * stored. Monospace for the same reason the table cell below it is
- * monospace: `193.161.193.99|29763` is read character by character or
- * not at all.
- *
- * **Two classes and not one**, for the reason `.vp-lane-span-off`
- * gives a hundred lines up: `.vp-rel-tag` sets all three of these and
- * sits *later* in this file, so a single class here has equal
- * specificity and loses on order. Measured, not assumed — the first
- * pass shipped one class and the harness read `text-transform:
- * uppercase` straight back off the chip.
- */
-.vp-strip .vp-strip-tag-mono {
-    font-family: var(--bs-font-monospace);
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 600;
-}
-
-/*
- * A line about the lanes, indented to the axis so it reads as part of
- * the strip rather than as a second panel caption — the legend's own
- * left offset, for the same reason.
- */
-.vp-strip-note {
-    /*
-     * Pulled back over `.vp-strip`'s own bottom margin: the note is a
-     * sibling of the strip and not a child of it — that is what makes
-     * it reachable past `role="img"` — and at the full 12px it read as
-     * a caption for the controls underneath instead.
-     */
-    margin: -8px 0 12px;
-    padding: 0 0 0 var(--vp-strip-label);
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
-}
-
-/* ------------------------------------------------------------------
- * Where two spans cover the same instant
- * ------------------------------------------------------------------
- * A lane can hold a value observed twice — `dns.google` is on
- * `8.8.8.8` from 2019 by `passive-dns` and again from 2024 by
- * `domain-ip` — and the honest drawing of that is a patch that reads
- * as deeper. Source-over could not do it. Stacking `opacity: .55` is
- * affine: each layer moves the shade a fixed fraction of the way to
- * the hue and then there is nowhere left to go, so it asymptotes on
- * the hue and depths 4, 5, 6, 10 and 14 are the same pixel. Measured
- * on the bench (`24b-overlap-mockup.html`), which stacks a known depth
- * of 1 to 6 and swatches out to 14: the shipped paint separated three
- * and the 50-span lane was one flat bar that could not say *where*
- * the activity was.
- *
- * Multiply is geometric — each layer scales the result rather than
- * nudging it toward a fixed point — so the ramp never arrives and
- * never runs out. `screen` is its mirror on the dark ground, where
- * the hue is the light end.
- *
- * **40% of the hue, and the bench chose it.** At 22% the ramp runs
- * past a dozen but a lone span reads washed out, and a lone span is
- * the common case — the value grouping caps a lane at a page of rows
- * and most hold one. At 55% a lone span is pixel-identical to the old
- * paint (multiply against the isolated group's transparent backdrop
- * *is* source-over) but the range barely improves on it. 40% keeps a
- * lone span at close to its old weight and separates to about five.
- *
- * **Scoped to the strip on purpose, and this one is not caution.**
- * The Timeline tab draws `.vp-lane-span` too, and its lanes carry
- * several sources at once, each with its own `--vp-tl-hue` — the hue
- * *is* the source's identity there. Multiplying two hues invents a
- * third colour that belongs to neither source, which would be a lane
- * telling a lie about who reported what. Every span in this strip
- * takes one `$stripHue` from its caller, so here the blend can only
- * ever darken.
- * ------------------------------------------------------------------ */
-
-.vp-strip .vp-lane-svg {
-    height: 26px;
-    /*
-     * Without this the blend reaches the card behind the lane instead
-     * of stopping at the lane. It also fixes the group's backdrop as
-     * transparent, which is what makes a single span composite exactly
-     * as it always did.
-     */
-    isolation: isolate;
-}
-
-.vp-strip .vp-lane-span {
-    /*
-     * The alpha moves from `opacity` into the fill. Element opacity
-     * would make each rect its own group at 0.55 and multiply *that*,
-     * putting the effective fill back at 22% — the washed-out end of
-     * the sweep, arrived at by accident.
-     */
-    opacity: 1;
-    fill: color-mix(in srgb, var(--vp-tl-hue) 40%, transparent);
-    mix-blend-mode: multiply;
-}
-
-[data-misp-mode="dark"] .vp-strip .vp-lane-span {
-    mix-blend-mode: screen;
-}
-
-/*
- * The dimming a narrowing applies, restated at three classes so it
- * cannot lose. `.vp-lane-span.vp-lane-span-off` below matches the rule
- * above at equal specificity and wins only because it sits later in
- * the file — true today and one reordering away from a filter that
- * visibly does nothing.
- */
-.vp-strip .vp-lane-span.vp-lane-span-off {
-    opacity: 0.1;
-}
-
-/*
- * The lane grid's third column is a count, and a count reads right.
- * The Timeline tab does not need this because its counts sit under a
- * blank heading; here the heading is a word.
- */
-.vp-strip-headnum {
-    text-align: right;
-}
-
-/*
- * A filtered-out span, and the reason it is still drawn: the axis is
- * the period the section covers, so removing the mark would rescale
- * nothing and imply the period shrank. Faint enough to read as absent,
- * present enough that the gap is still a gap.
- *
- * Two classes and not one, because `.vp-lane-span` sets an opacity of
- * its own six hundred lines further down this file — a single class
- * here has the same specificity and loses on order, which is a rule
- * that looks right in the stylesheet and does nothing on the page.
- */
-.vp-lane-span.vp-lane-span-off,
-.vp-lane-mark.vp-lane-span-off {
-    opacity: 0.1;
-}
-
-/*
- * The key, and it only appears when the strip is mixing bars with dots.
- * Sits under the lanes rather than over them: it explains a mark the
- * reader has already seen and gone looking for, which is a different job
- * from the Timeline tab's legend naming eight sources up front.
- */
-.vp-strip-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 14px;
-    padding: 6px 0 0 var(--vp-strip-label);
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
-}
-
-.vp-strip-swatch {
-    width: 14px;
-    height: 14px;
-    flex: none;
-}
-
-/*
- * The overlap key's swatch stacks two spans, so it needs the lanes'
- * isolation to blend them against each other rather than against the
- * card. It cannot simply borrow `.vp-lane-svg` for that: two classes
- * beat one, so `.vp-strip .vp-lane-svg` would win the height and the
- * 14px key would be drawn 26px tall.
- */
-.vp-strip-swatch-stack {
-    isolation: isolate;
-}
-
-/*
- * One row of controls between the strip and the table, wrapping to as
- * many lines as the facet groups need. `align-items: start` so a group
- * that folded its tail does not stretch the window control beside it.
- */
-.vp-dated-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: start;
-    gap: 10px 18px;
-    padding: 10px 0 12px;
-    border-bottom: 1px solid var(--bs-border-color-translucent);
-    margin-bottom: 8px;
-}
-
-.vp-dated-window {
-    min-width: 17rem;
-    flex: 0 1 auto;
-}
-
-.vp-dated-controls .vp-facetgrp {
-    flex: 1 1 11rem;
-    min-width: 11rem;
-}
-
-.vp-ref-type {
-    font-family: var(--bs-font-monospace);
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--vp-rel-reference);
-}
-
-.vp-ref-unnamed {
-    font-family: var(--bs-font-monospace);
-    font-size: 0.78rem;
-    font-style: italic;
-    color: var(--bs-secondary-color);
-}
-
-.vp-ref-faces {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 6px;
-}
-
-/*
- * Bounded, because one of these is a whole SOA record. `passive-dns`
- * files an SOA under `rrname`, so a row on `18.117.184.102` carries
- * `ns-1064.awsdns-05.org awsdns-hostmaster.amazon.com 1 7200 900
- * 1209600 86400` beside four normal names and wraps to three lines.
- * The `title` holds the whole of it and the value's own page holds the
- * rest.
- */
-.vp-ref-face {
-    font-family: var(--bs-font-monospace);
-    font-size: 0.76rem;
-    display: inline-block;
-    max-width: 22rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: bottom;
-}
-
-.vp-ref-face-relation {
-    color: var(--bs-secondary-color);
-}
-
-/*
  * The notion chip. Carried by every section header so a reader never
  * has to remember which colour meant which.
  */
@@ -5554,32 +5852,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 }
 
 /*
- * A strength reading, on the page's own .vp-weight track. Strengths
- * are only ever compared inside one roll-up, never across the three
- * notions — which is why the bar takes its colour from the section it
- * is in rather than from a scale of its own.
- */
-.vp-rel-bar {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 7rem;
-}
-
-.vp-rel-bar .vp-weight-track {
-    flex: 1 1 auto;
-    min-width: 3rem;
-}
-
-.vp-rel-bar-read {
-    flex: 0 0 auto;
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--bs-secondary-color);
-    white-space: nowrap;
-}
-
-/*
  * `Scan again` sits inside the sentence that says how old the read is,
  * so it takes the band's size rather than the button's. Everything else
  * — colour, hover, focus ring, disabled — is Bootstrap's `btn-link`,
@@ -5615,26 +5887,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 .ajax-tab-content.is-loading .vp-narrowing,
 .ajax-card.is-loading .vp-narrowing {
     opacity: 1;
-}
-
-/*
- * A row's audiences: MISP's own badge once per distinct distribution,
- * and a sharing group named beside its own badge.
- */
-.vp-dist-set {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.vp-dist-sg {
-    max-width: 9rem;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: 0.72rem;
-    color: var(--bs-secondary-color);
 }
 
 /*
@@ -5680,15 +5932,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
 .vp-rel-cap strong {
     color: var(--bs-body-color);
     font-weight: 600;
-}
-
-/* The opposite statement: nothing was cut. */
-.vp-rel-cap-complete {
-    background: color-mix(in srgb, var(--vp-rel-human) 8%, var(--bs-body-bg));
-}
-
-[data-misp-mode="dark"] .vp-rel-cap-complete {
-    background: color-mix(in srgb, var(--vp-rel-human) 18%, var(--bs-body-bg));
 }
 
 /*
@@ -5747,16 +5990,6 @@ body[data-controller="values"] .vp-vc-hero-action:disabled {
     border-bottom: var(--vp-swatch-arrow) solid transparent;
 }
 
-/*
- * A machine row wears its notion on the left edge — solid for a
- * correlation the engine stored, dashed for one re-derived as a
- * near-match. A border rather than an inset shadow, because the dash
- * is half the distinction and a shadow cannot be dashed.
- */
-tr.vp-rel-stripe > td:first-child {
-    border-left: 3px solid var(--vp-rel-color);
-}
-
 tr.vp-rel-k-near > td:first-child {
     border-left-style: dashed;
 }
@@ -5770,118 +6003,6 @@ tr.vp-rel-k-near > td:first-child {
 tr.vp-rel-k-external > td:first-child {
     border-left-style: double;
     border-left-width: 4px;
-}
-
-/*
- * A remote event, as a link that admits where it goes. Outlined rather
- * than filled: every other chip on this page stands for something the
- * instance holds, and this one stands for something it has only been
- * told about.
- *
- * Carries its own shape and deliberately not Bootstrap's `.badge`, which
- * the first cut borrowed for the pill. `.badge` sets `color: #fff` and no
- * background at all, so the moment this rule was missing — a stylesheet
- * still cached under the same `?v=` — the links rendered white on the
- * white card. Same reason `.vp-rel-tag` above does not use it either: a
- * chip must not need a second stylesheet to be legible.
- */
-.vp-external-event {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 9px;
-    border: 1px dashed color-mix(in srgb, var(--vp-rel-external) 45%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--vp-rel-external) 12%, var(--bs-body-bg));
-    color: var(--vp-rel-external);
-    font-size: 0.72rem;
-    font-weight: 600;
-    line-height: 1.5;
-    white-space: nowrap;
-    text-decoration: none;
-}
-
-[data-misp-mode="dark"] .vp-external-event {
-    background: color-mix(in srgb, var(--vp-rel-external) 24%, var(--bs-body-bg));
-}
-
-.vp-external-event:hover,
-.vp-external-event:focus-visible {
-    border-style: solid;
-    background: color-mix(in srgb, var(--vp-rel-external) 26%, var(--bs-body-bg));
-    color: var(--vp-rel-external);
-    text-decoration: none;
-}
-
-.vp-external-event > i {
-    font-size: 0.72em;
-    opacity: 0.75;
-}
-
-/*
- * The count leads and the UUIDs fold (B3).
- *
- * A native `<details>` because the panel is injected lazily and binds no
- * JS of its own. `list-style: none` plus the WebKit pseudo-element is
- * both halves of removing the default triangle — Safari ignores the
- * first — and the chevron then carries the state itself.
- *
- * The closed state is spelled out here rather than left to the UA. A
- * Bootstrap display utility inside a `<details>` is `!important` and
- * beats the browser's hiding outright, so the pills render with the
- * fold shut — which is the one thing this task exists to stop. Stating
- * it means a future utility class cannot quietly undo it.
- */
-.vp-external-fold:not([open]) > *:not(summary) {
-    display: none;
-}
-
-.vp-external-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
-}
-
-.vp-external-fold > summary {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    cursor: pointer;
-    list-style: none;
-    user-select: none;
-}
-
-.vp-external-fold > summary::-webkit-details-marker {
-    display: none;
-}
-
-.vp-external-fold > summary > i {
-    font-size: 0.62rem;
-    color: var(--bs-secondary-color);
-    transition: transform 0.15s ease;
-}
-
-.vp-external-fold[open] > summary > i {
-    transform: rotate(180deg);
-}
-
-.vp-external-fold > summary:focus-visible {
-    outline: 2px solid var(--vp-rel-external);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-.vp-external-hits {
-    font-size: 0.95rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--vp-rel-external);
-}
-
-.vp-external-hits-unit {
-    font-size: 0.74rem;
-    color: var(--bs-secondary-color);
 }
 
 /*
@@ -5927,67 +6048,6 @@ tr.vp-rel-k-external > td:first-child {
     vertical-align: bottom;
 }
 
-th.vp-rel-num {
-    min-width: 8rem;
-}
-
-/*
- * Near-match engines, and the four states one can be in: running,
- * inapplicable to this type, present but unable to run here, and
- * absent from MISP altogether.
- *
- * Two of those get a block: the one that ran, and the one that could
- * have. The other two are a single fact each and get
- * `.vp-rel-engine-line`, which is the same row with the padding of a
- * list item rather than of a section.
- */
-.vp-rel-engine {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--bs-border-color);
-}
-
-.vp-rel-engine-state {
-    flex: 0 0 7.5rem;
-    padding-top: 2px;
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--bs-secondary-color);
-}
-
-.vp-rel-engine-on .vp-rel-engine-state {
-    color: var(--vp-rel-near);
-}
-
-.vp-rel-engine-off {
-    background: var(--bs-tertiary-bg);
-}
-
-.vp-rel-engine-name {
-    font-weight: 600;
-}
-
-/*
- * An engine that is not running, in one line. The state column keeps
- * its width so the label still lines up with the block above it, and
- * `align-items: baseline` sits the name on the same baseline as the
- * state rather than 2px below it, which is what the block's
- * `padding-top` was compensating for.
- */
-.vp-rel-engine-line {
-    align-items: baseline;
-    padding-top: 8px;
-    padding-bottom: 8px;
-}
-
-.vp-rel-engine-line .vp-rel-engine-state {
-    padding-top: 0;
-}
-
 .vp-rel-score {
     background: color-mix(in srgb, var(--vp-rel-near) 14%, var(--bs-body-bg));
     border: 1px solid color-mix(in srgb, var(--vp-rel-near) 40%, transparent);
@@ -5998,67 +6058,6 @@ th.vp-rel-num {
 
 [data-misp-mode="dark"] .vp-rel-score {
     background: color-mix(in srgb, var(--vp-rel-near) 24%, var(--bs-body-bg));
-}
-
-/*
- * A claim is not a row. It reuses the page's own .vp-analyst block so
- * it can never be redrawn as one by accident — the indent, the kind
- * gutter and the author line are what make it unmistakable in
- * greyscale, and the colour is only the confirmation.
- */
-.vp-rel-claim {
-    border-left-color: var(--vp-rel-human);
-}
-
-.vp-rel-claim .vp-analyst-kind {
-    flex: 0 0 104px;
-    align-items: flex-start;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.72rem;
-    letter-spacing: 0;
-    text-transform: none;
-    color: var(--vp-rel-human);
-}
-
-/*
- * The direction chip, worn by both sections a person wrote — the
- * asserted claims and the typed references. One class and one pair of
- * words for one convention; `value_relation_direction.ctp` holds the
- * argument. The arrow takes the panel's colour so the chip belongs to
- * whichever section it lands in, and `nowrap` because the references
- * table cell it now sits in is as narrow as a relationship name.
- */
-.vp-rel-dir {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0 6px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 4px;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--bs-secondary-color);
-}
-
-.vp-rel-dir > i {
-    color: var(--vp-panel-color, var(--bs-secondary-color));
-}
-
-/* In a table cell the chip is a line of its own, over the sub-line
- * saying how the reference reaches this value. */
-.vp-rel-dir + .vp-fact-line-sub {
-    margin-top: 3px;
-}
-
-.vp-rel-target {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    font-size: 0.82rem;
 }
 
 /*
@@ -6083,68 +6082,8 @@ th.vp-rel-num {
     text-decoration: underline;
 }
 
-/*
- * One link per claim carries the link colour, and it is the target —
- * the thing the claim is *about*. The other three (the event it lives
- * in, and the two organisations) sit on lines that are already meta and
- * keep those lines' colour, so a block ends up with one blue run rather
- * than four and the eye still lands on the subject.
- */
-.vp-claim-target {
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.vp-claim-facts .vp-claim-link,
-.vp-analyst-meta .vp-claim-link {
-    color: inherit;
-}
-
-.vp-claim-facts .vp-claim-link:hover,
-.vp-claim-facts .vp-claim-link:focus-visible,
-.vp-analyst-meta .vp-claim-link:hover,
-.vp-analyst-meta .vp-claim-link:focus-visible {
-    color: var(--bs-link-color);
-}
-
-/*
- * What the far end is, under what it is called. One indented line at
- * the meta size, so a claim gains a line of detail without gaining the
- * weight of a second statement.
- */
-.vp-claim-facts {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    margin-top: 3px;
-    font-size: 0.7rem;
-    color: var(--bs-secondary-color);
-}
-
-.vp-claim-facts > i {
-    flex: 0 0 auto;
-    opacity: 0.55;
-}
-
-.vp-claim-facts > span {
-    min-width: 0;
-}
-
 .vp-claim-sep {
     opacity: 0.5;
-}
-
-/*
- * A target this instance cannot show. Warn-toned rather than muted: it
- * is the one line in the block that says a fact is missing, and the
- * claim above it is still true.
- */
-.vp-claim-unresolved {
-    color: var(--bs-warning-text-emphasis);
-}
-
-[data-misp-mode="dark"] .vp-claim-unresolved {
-    color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
 }
 
 /* ------------------------------------------------------------------
@@ -6306,68 +6245,6 @@ th.vp-rel-num {
 
 .vp-claim-chips .badge {
     margin-bottom: 0 !important;
-}
-
-/*
- * The Narrow by bar. A dropdown per facet key rather than a rail:
- * this pane already spends its width on eleven columns, and the
- * counts have to be reachable without pushing the table narrower.
- */
-.vp-rel-facet {
-    --bs-btn-font-size: 0.78rem;
-}
-
-.vp-rel-facetmenu {
-    min-width: 17rem;
-    max-height: 22rem;
-    overflow-y: auto;
-}
-
-.vp-rel-facetmenu .vp-facetgrp:last-child {
-    margin-bottom: 0;
-}
-
-/*
- * MISP's type badge, re-flowed for a dense row. The factory wraps it in
- * a d-flex block, which would put every type on its own line.
- */
-.vp-rel-type > div {
-    display: inline-flex;
-}
-
-.vp-rel-type p {
-    padding: 1px 5px;
-    font-family: var(--bs-font-monospace);
-    font-size: 0.72rem;
-    white-space: nowrap;
-}
-
-/*
- * The Family cell on a label row: a galaxy or a taxonomy namespace.
- * Plain text rather than a badge, because the badge beside it in the
- * first cell already carries that colour — two coloured chips on one
- * row would compete for the same glance.
- */
-.vp-rel-family {
-    font-size: 0.74rem;
-    white-space: nowrap;
-}
-
-/*
- * How a label reached this value. The rail card's `.vp-threat-mark`
- * verbatim in look, because it is the same statement in the same
- * words, and a reader moving between the card and the table should not
- * have to notice they moved. No left margin: this is a cell of its
- * own here, where on the card it trails a name.
- */
-.vp-rel-attach {
-    padding: 0 4px;
-    border-radius: 3px;
-    background: var(--bs-secondary-bg, rgba(128, 128, 128, 0.22));
-    color: var(--bs-secondary-color);
-    font-size: 0.64rem;
-    white-space: nowrap;
-    vertical-align: middle;
 }
 
 /* ------------------------------------------------------------------
@@ -8069,7 +7946,7 @@ th.vp-rel-num {
  * Analyst data tab
  * ==================================================================
  * The item itself, its badges, its bars and its empty states are
- * primitives that already exist — .vp-analyst, .vp-opinion,
+ * primitives that already exist — .vp-opinion,
  * .vp-table, .vp-empty, .vp-acl-note, .vp-subhead. What is new here is
  * threading, the standing card, the chip naming what an item hangs
  * off, and the composer shell.
@@ -9295,16 +9172,6 @@ th.vp-rel-num {
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-}
-
-/*
- * The marks take their colour through a custom property rather than a
- * `fill` attribute: a presentation attribute does not resolve
- * `var()`, and the whole palette here is custom properties so a lane
- * mark and its stack segment cannot drift apart.
- */
-.vp-lane-mark {
-    fill: var(--vp-tl-hue);
 }
 
 /* ------------------------------------------------------------------
@@ -10541,19 +10408,6 @@ a.vp-hx-event:focus-visible {
 .vp-dense .vp-empty > i,
 .vp-dense .vp-empty > .misp-icon {
     font-size: 1rem;
-}
-
-/* One turn of the thread, at 76px rather than 101px. */
-.vp-dense .vp-analyst {
-    padding: 6px 10px;
-}
-
-.vp-dense .vp-analyst-body > .d-flex:first-child {
-    margin-bottom: 2px !important;
-}
-
-.vp-dense .vp-analyst-meta {
-    margin-top: 2px;
 }
 
 /* The gap between panels, which is four of them on this tab. */

@@ -436,7 +436,7 @@ class ValueIntelligence extends AppModel
      * `00-contract.md` §14.4 carries the rule; this is the second thing
      * a key here must capture, after the permission scope.
      */
-    const CACHE_SHAPE = 13;
+    const CACHE_SHAPE = 16;
 
     /**
      * Objects the sibling join will read.
@@ -4151,10 +4151,90 @@ class ValueIntelligence extends AppModel
                     $options,
                     array('cooccurrence' => $context['co'])
                 ),
-                'cooccurrence' => $context['co'],
+                'cooccurrence' => $this->cooccurrencePage($user,
+                    $context['co']),
                 'settings' => $this->relationSettings($user, $value),
             ),
         );
+    }
+
+    /**
+     * What the "In the same events" card draws beside the fold, read for
+     * the rows it carries only: each event's preview, and each object's
+     * meta-category, template and attributes in the template's order, as
+     * the objects index draws them.
+     *
+     * @param array $user
+     * @param array $co The fold
+     * @return array The fold with `event_peeks`, object rows completed
+     */
+    private function cooccurrencePage(array $user, array $co)
+    {
+        $events = array();
+        foreach ($co['rollups']['value']['rows'] as $row) {
+            foreach ($row['events'] as $eventId) {
+                $events[(int)$eventId] = true;
+            }
+        }
+        foreach ($co['rollups']['event']['rows'] as $row) {
+            $events[(int)$row['event']['id']] = true;
+        }
+        $objects = $co['rollups']['object']['rows'];
+        foreach ($objects as $row) {
+            $events[(int)$row['event']] = true;
+        }
+        $co['event_peeks'] = $this->eventPeeks($user, array_keys($events));
+        if (empty($objects)) {
+            return $co;
+        }
+        $meta = array();
+        $found = $this->model('MispObject')->find('all', array(
+            'conditions' => array('Object.id' => array_map(
+                function ($row) {
+                    return (int)$row['object']['id'];
+                },
+                $objects
+            )),
+            'fields' => array(
+                'Object.id',
+                'Object.meta-category',
+                'Object.template_uuid',
+                'Object.template_version',
+                'Object.comment',
+                'Object.timestamp',
+                'Object.distribution',
+            ),
+            'recursive' => -1,
+        ));
+        foreach ($found as $row) {
+            $meta[(int)$row['Object']['id']] = $row['Object'];
+        }
+        $order = $this->model('MispObject')->fieldOrderByTemplate(
+            array_column($meta, 'template_uuid')
+        );
+        foreach ($objects as $at => $row) {
+            $object = $meta[(int)$row['object']['id']] ?? array();
+            $objects[$at]['object'] += array(
+                'meta-category' => $object['meta-category'] ?? '',
+                'template_version' => $object['template_version'] ?? null,
+                'comment' => $object['comment'] ?? '',
+                'timestamp' => (int)($object['timestamp'] ?? 0),
+                'distribution' => (int)($object['distribution'] ?? 0),
+            );
+            $rank = $order[$object['template_uuid'] ?? ''] ?? array();
+            $attributes = $row['attributes'];
+            $positions = array_flip(array_keys($attributes));
+            uksort($attributes, function ($a, $b) use ($attributes, $rank,
+                $positions
+            ) {
+                $left = $rank[$attributes[$a]['relation']] ?? PHP_INT_MAX;
+                $right = $rank[$attributes[$b]['relation']] ?? PHP_INT_MAX;
+                return $left <=> $right ?: $positions[$a] <=> $positions[$b];
+            });
+            $objects[$at]['attributes'] = array_values($attributes);
+        }
+        $co['rollups']['object']['rows'] = $objects;
+        return $co;
     }
 
     /**
@@ -4175,11 +4255,20 @@ class ValueIntelligence extends AppModel
         array $options = array()
     ) {
         $types = $this->model('Value')->typesFor($user, $value, $options);
+        $near = $this->nearMatches($user, $value, $types);
+        // The rail names each match's event with its preview.
+        $events = array();
+        foreach ($near['engines'] as $engine) {
+            foreach ($engine['rows'] as $row) {
+                $events[(int)$row['event']] = true;
+            }
+        }
+        $near['event_peeks'] = $this->eventPeeks($user, array_keys($events));
         return array(
             'value' => $value,
             'types' => $types,
             'relationships' => array(
-                'near' => $this->nearMatches($user, $value, $types),
+                'near' => $near,
             ),
         );
     }
@@ -4221,10 +4310,15 @@ class ValueIntelligence extends AppModel
     ) {
         unset($options['filters']);
         $context = $this->cooccurrenceContext($user, $value, $options);
+        $dated = $context['co']['dated'];
+        // The rail names each row's event with its preview.
+        $dated['event_peeks'] = $this->eventPeeks($user, array_values(array_unique(
+            array_map('intval', array_column($dated['rows'], 'event'))
+        )));
         return array(
             'value' => $value,
             'relationships' => array(
-                'dated' => $context['co']['dated'],
+                'dated' => $dated,
                 'siblings' => array(
                     'in_objects' => $context['co']['siblings']['in_objects'],
                     'objects' => $context['co']['siblings']['objects'],
@@ -4790,7 +4884,7 @@ class ValueIntelligence extends AppModel
         array $options
     ) {
         $context = $this->cooccurrenceContext($user, $value, $options);
-        $asserted = $this->assertedClaims($user, $value, $options);
+        $asserted = $this->assertedClaims($user, $value, $options, false);
 
         $digest = array(
             /*
@@ -6317,11 +6411,75 @@ class ValueIntelligence extends AppModel
                 array_merge($options, array('unit' => 'object'))
             ),
         );
+        $siblings = ValueRelationTool::siblings($rows, $context);
+        $siblings['by_object'] = $this->siblingObjects($user, $value,
+            $options, $objects, $rows, $context);
         return array(
-            'siblings' => ValueRelationTool::siblings($rows, $context),
+            'siblings' => $siblings,
             'dated' => ValueRelationTool::dated($rows, $context),
             'object_ids' => array_keys($objects),
         );
+    }
+
+    /**
+     * The same join, one entry per object as the objects index draws
+     * it: this value's own rows beside the others, the object's
+     * template fields in order, and its event ready for the preview.
+     *
+     * @param array $user
+     * @param string $value
+     * @param array $options
+     * @param array $objects `Value::occurrenceObjectIdsFor`
+     * @param array $rows The sibling rows
+     * @param array $context The sibling fold's context
+     * @return array `rows`, `total`, `events`
+     */
+    private function siblingObjects(array $user, $value, array $options,
+        array $objects, array $rows, array $context
+    ) {
+        if (empty($rows)) {
+            return array('rows' => array(), 'total' => 0,
+                'events' => array());
+        }
+        $ids = array_keys($objects);
+        $own = $this->model('Value')->neighbourRowsFor(
+            $user,
+            $value,
+            array('objects' => $ids, 'own' => true),
+            $options
+        );
+        $meta = array();
+        $found = $this->model('MispObject')->find('all', array(
+            'conditions' => array('Object.id' => $ids),
+            'fields' => array(
+                'Object.id',
+                'Object.meta-category',
+                'Object.template_uuid',
+                'Object.template_version',
+                'Object.comment',
+                'Object.timestamp',
+            ),
+            'recursive' => -1,
+        ));
+        foreach ($found as $row) {
+            $meta[(int)$row['Object']['id']] = $row['Object'];
+        }
+        $fold = ValueRelationTool::siblingObjects($rows, $own, array_merge(
+            $context,
+            array(
+                'objects' => $objects,
+                'meta' => $meta,
+                'field_order' => $this->model('MispObject')
+                    ->fieldOrderByTemplate(array_column($meta,
+                        'template_uuid')),
+            )
+        ));
+        $fold['events'] = $this->eventPeeks($user, array_values(
+            array_unique(array_map(function ($object) {
+                return $object['event']['id'];
+            }, $fold['rows']))
+        ));
+        return $fold;
     }
 
     /**
@@ -6613,10 +6771,12 @@ class ValueIntelligence extends AppModel
                 && isset($ourObjects[$edge['near']['id']])
                 ? array(
                     'kind' => 'object',
-                    'object' => isset($faces['objects']
-                        [$edge['near']['id']]['object'])
-                        ? $faces['objects'][$edge['near']['id']]['object']
-                        : null,
+                    // Read with the object ids: a face exists only for
+                    // an object with a linking attribute.
+                    'object' => $ourObjects[$edge['near']['id']]['name'] !== ''
+                        ? $ourObjects[$edge['near']['id']]['name']
+                        : ($faces['objects'][$edge['near']['id']]['object']
+                            ?? null),
                     'relation' => $ourObjects[$edge['near']['id']]
                         ['relation'],
                 )
@@ -6636,7 +6796,109 @@ class ValueIntelligence extends AppModel
                 'event' => (int)$edge['row']['event_id'],
             );
         }
-        return ValueRelationTool::references($rows, $context);
+        return $this->referenceRecordsPage(
+            $user,
+            ValueRelationTool::references($rows, $context)
+        );
+    }
+
+    /**
+     * What the card draws for each record at the far end of a reference:
+     * an object's meta-category, template version and every attribute
+     * this reader may see, in the template's order; the events' previews.
+     *
+     * @param array $user
+     * @param array $section `ValueRelationTool::references`
+     * @return array The section, its `records` completed
+     */
+    private function referenceRecordsPage(array $user, array $section)
+    {
+        $objectIds = array();
+        $events = array();
+        foreach ($section['records'] as $record) {
+            $events[$record['event']] = true;
+            if ($record['kind'] === 'object') {
+                $objectIds[] = $record['id'];
+            }
+        }
+        $section['event_peeks'] = $this->eventPeeks($user, array_keys($events));
+        if (empty($objectIds)) {
+            return $section;
+        }
+        $meta = array();
+        foreach ($this->model('MispObject')->find('all', array(
+            'conditions' => array('Object.id' => $objectIds),
+            'fields' => array(
+                'Object.id',
+                'Object.meta-category',
+                'Object.template_uuid',
+                'Object.template_version',
+                'Object.comment',
+                'Object.timestamp',
+                'Object.distribution',
+            ),
+            'recursive' => -1,
+        )) as $row) {
+            $meta[(int)$row['Object']['id']] = $row['Object'];
+        }
+        $attributes = array();
+        foreach ($this->model('MispAttribute')->fetchAttributesSimple($user, array(
+            'conditions' => array(
+                'Attribute.object_id' => $objectIds,
+                'Attribute.deleted' => 0,
+            ),
+            'fields' => array(
+                'Attribute.id',
+                'Attribute.object_id',
+                'Attribute.object_relation',
+                'Attribute.type',
+                'Attribute.category',
+                'Attribute.value',
+                'Attribute.distribution',
+                'Attribute.sharing_group_id',
+                'Attribute.timestamp',
+                'Attribute.to_ids',
+            ),
+        )) as $row) {
+            $attribute = $row['Attribute'];
+            $attributes[(int)$attribute['object_id']][] = array(
+                'id' => (int)$attribute['id'],
+                'value' => (string)$attribute['value'],
+                'type' => $attribute['type'],
+                'category' => $attribute['category'],
+                'relation' => (string)$attribute['object_relation'],
+                'distribution' => (int)$attribute['distribution'],
+                'sharing_group_id' => (int)$attribute['sharing_group_id'],
+                'timestamp' => (int)$attribute['timestamp'],
+                'to_ids' => !empty($attribute['to_ids']),
+            );
+        }
+        $order = $this->model('MispObject')->fieldOrderByTemplate(
+            array_column($meta, 'template_uuid')
+        );
+        foreach ($section['records'] as $at => $record) {
+            if ($record['kind'] !== 'object') {
+                continue;
+            }
+            $object = $meta[$record['id']] ?? array();
+            $rank = $order[$object['template_uuid'] ?? ''] ?? array();
+            $list = $attributes[$record['id']] ?? array();
+            $positions = array_flip(array_keys($list));
+            uksort($list, function ($a, $b) use ($list, $rank, $positions) {
+                return ($rank[$list[$a]['relation']] ?? PHP_INT_MAX)
+                    <=> ($rank[$list[$b]['relation']] ?? PHP_INT_MAX)
+                    ?: $positions[$a] <=> $positions[$b];
+            });
+            $section['records'][$at] += array(
+                'meta-category' => $object['meta-category'] ?? '',
+                'template_version' => $object['template_version'] ?? null,
+                'comment' => $object['comment'] ?? '',
+                'timestamp' => (int)($object['timestamp'] ?? 0),
+                'distribution' => (int)($object['distribution'] ?? 0),
+                'attributes' => array_values($list),
+            );
+        }
+        return $section;
     }
 
     /**
@@ -7278,16 +7540,18 @@ class ValueIntelligence extends AppModel
      * the two endpoints, an author, a date and a distribution, and no
      * prose column at all — unlike `notes.note` and `opinions.comment`
      * beside it. Prose about a relationship is a Note attached to the
-     * relationship, which is another fetch per claim and is deferred.
-     * `24-relationships.md` §7.
+     * relationship: each claim carries its notes and opinions, read by
+     * `analystThreadItems` as the Collaboration tab reads its thread, so
+     * the card draws it through the shared AnalystData/thread.
      *
      * @param array $user
      * @param string $value
      * @param array $options
+     * @param bool $replies Read each claim's notes and opinions
      * @return array
      */
     private function assertedClaims(array $user, $value,
-        array $options = array()
+        array $options = array(), $replies = true
     ) {
         $occurrences = $this->model('Value')->occurrenceUuidsFor(
             $user,
@@ -7364,12 +7628,18 @@ class ValueIntelligence extends AppModel
              * claims is twelve queries nobody asked for. Contained,
              * it is two joins.
              */
+            // The replies are read below, one level at a time.
+            $recursive = $relationships->fetchRecursive;
+            $relationships->current_user = $user;
+            $relationships->fetchRecursive = false;
             $rows = $relationships->find('all', array(
                 'conditions' => $conditions,
                 'recursive' => -1,
                 'contain' => array('Org', 'Orgc'),
                 'order' => array('Relationship.modified DESC'),
             ));
+            $relationships->fetchRecursive = $recursive;
+            $anchorsByUuid = $this->claimAnchors($occurrences);
             foreach ($rows as $row) {
                 $claim = $this->claimFrom($user, $row, $near);
                 if ($claim === null) {
@@ -7385,10 +7655,25 @@ class ValueIntelligence extends AppModel
                         $claim['spelled'] = $spelling;
                     }
                 }
+                $claim['attached_to'] = $claim['anchor'] === 'AttributeValue'
+                    ? array('kind' => 'value', 'spelled' => $claim['spelled'])
+                    : ($anchorsByUuid[$claim['anchor_uuid']]
+                        ?? array('kind' => 'unresolved', 'event' => null));
+                $claim['replies'] = array();
                 $claims[$row['Relationship']['uuid']] = $claim;
                 $orgs[$claim['org']] = true;
             }
             $claims = $this->resolveClaimTargets($user, $claims);
+            $claimTargets = array();
+            foreach ($replies ? array_keys($claims) : array() as $uuid) {
+                $claimTargets[$uuid] = array('kind' => 'claim', 'claim' => $uuid);
+            }
+            foreach ($this->analystThreadItems($user, $claimTargets) as $reply) {
+                $claim = $reply['attached_to']['claim'] ?? null;
+                if (isset($claims[$claim])) {
+                    $claims[$claim]['replies'][] = $reply;
+                }
+            }
         }
         return array(
             'total' => count($claims),
@@ -7405,6 +7690,43 @@ class ValueIntelligence extends AppModel
             'prose_absent' => !empty($claims),
             'claims' => array_values($claims),
         );
+    }
+
+    /**
+     * Which record of this value each occurrence-side anchor UUID is, in
+     * the shape the Collaboration tab's `value_analyst_target` chip reads.
+     *
+     * @param array $occurrences `Value::occurrenceUuidsFor`
+     * @return array uuid => attachment
+     */
+    private function claimAnchors(array $occurrences)
+    {
+        $anchors = array();
+        foreach ($occurrences as $uuid => $occurrence) {
+            $anchors[$uuid] = array(
+                'kind' => 'attribute',
+                'type' => $occurrence['type'],
+                'event' => $occurrence['event_id'],
+            );
+            if (!empty($occurrence['event_uuid'])
+                && !isset($anchors[$occurrence['event_uuid']])
+            ) {
+                $anchors[$occurrence['event_uuid']] = array(
+                    'kind' => 'event',
+                    'event' => $occurrence['event_id'],
+                );
+            }
+            if (!empty($occurrence['object_uuid'])
+                && !isset($anchors[$occurrence['object_uuid']])
+            ) {
+                $anchors[$occurrence['object_uuid']] = array(
+                    'kind' => 'object',
+                    'name' => $occurrence['object_name'],
+                    'event' => $occurrence['event_id'],
+                );
+            }
+        }
+        return $anchors;
     }
 
     /**
@@ -7483,6 +7805,16 @@ class ValueIntelligence extends AppModel
             ? null
             : self::claimOrg($relationship, 'Org');
         return array(
+            'id' => (int)$relationship['id'],
+            'uuid' => $relationship['uuid'],
+            'created' => $relationship['created'] ?? $relationship['modified'],
+            'authors' => (string)($relationship['authors'] ?? ''),
+            'can_edit' => !empty($relationship['_canEdit']),
+            // This value's end of the claim: the occurrence, its event,
+            // its object or the value itself.
+            'anchor_uuid' => $outbound
+                ? $address('object')
+                : $address('related_object'),
             'relationship_type' => empty($relationship['relationship_type'])
                 ? __('related-to')
                 : $relationship['relationship_type'],
